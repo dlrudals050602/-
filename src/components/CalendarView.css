@@ -1,0 +1,29 @@
+.react-calendar__tile {
+  position: relative;
+  height: 90px !important; 
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 8px 0px !important; 
+  box-sizing: border-box;
+  border-right: 1px solid #000000 !important;
+  border-bottom: 1px solid #000000 !important;
+}
+
+.day-split-container {
+  display: grid;
+  grid-template-columns: repeat(1fr, 5); /* 가로로 균등하게 5등분 */
+  width: 100%;
+  height: 35px; 
+  gap: 2px; /* 칸 사이의 아주 작은 간격 */
+  margin-top: auto; /* 날짜 숫자보다 아래쪽에 배치 */
+}
+
+/* 4. 개별 분할 칸 스타일 */
+.sub-cell {
+  background-color: #e0e0e0; /* 기본 배경 회색 */
+  border-radius: 0px;
+  height: 100%;
+  box-sizing: border-box;
+}
