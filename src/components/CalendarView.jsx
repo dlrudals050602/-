@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './CalendarView.css';
+import { groupLeavesByDate, getLeaveColor } from '../services/leaveService';
 
 // 날짜 객체를 "YYYY-MM-DD" 문자열로 변환하는 헬퍼
 const formatDateStr = (targetDate) => {
@@ -14,49 +15,43 @@ const formatDateStr = (targetDate) => {
 
 function CalendarView({ leaves = [], date, onDateChange }) {
 
-  // 1. leaves 데이터 변경 시에만 날짜별 Map 전처리
   const leavesByDateMap = useMemo(() => {
-    const map = {};
-
-    leaves.forEach((leave) => {
-      // YYYY-MM-DD 문자열을 안전하게 로컬 Date 객체로 파싱 (타임존 방지)
-      const [sYear, sMonth, sDay] = leave.startDate.split('-').map(Number);
-      const [eYear, eMonth, eDay] = leave.endDate.split('-').map(Number);
-
-      let current = new Date(sYear, sMonth - 1, sDay);
-      const end = new Date(eYear, eMonth - 1, eDay);
-
-      while (current <= end) {
-        const dateStr = formatDateStr(current);
-
-        if (!map[dateStr]) {
-          map[dateStr] = [];
-        }
-        map[dateStr].push(leave);
-
-        current.setDate(current.getDate() + 1); // 하루씩 증가
-      }
-    });
-
-    return map;
+    return groupLeavesByDate(leaves);
   }, [leaves]);
 
-  // 2. 5칸 가로 트랙 타일 렌더링
   const renderTileContent = ({ date, view }) => {
     if (view === 'month') {
       const dateStr = formatDateStr(date);
       const activeLeaves = leavesByDateMap[dateStr] || [];
 
+      // 수직 적층 규칙: '휴가'가 항상 바닥(낮은 인덱스)에 배치되도록 정렬
+      const sortedActiveLeaves = [...activeLeaves]
+        .filter(leave => leave.status === 'active')
+        .sort((a, b) => {
+          const isVacationA = a.leaveType === '휴가';
+          const isVacationB = b.leaveType === '휴가';
+
+          // 1. 휴가를 아래쪽(낮은 인덱스)으로 정렬
+          if (isVacationA && !isVacationB) return -1;
+          if (!isVacationA && isVacationB) return 1;
+
+          // 2. 동일 종목 내에서는 신청 일시 순 정렬
+          if (a.createdAt && b.createdAt) {
+            return new Date(a.createdAt) - new Date(b.createdAt);
+          }
+          return a.name.localeCompare(b.name, 'ko');
+        });
+
       return (
         <div className="day-split-container">
-          {/* 5개 트랙(0~4)을 생성하도록 [0, 1, 2, 3, 4] 배열 사용 */}
           {[0, 1, 2, 3, 4].map((index) => {
-            const leaveOnThisTrack = activeLeaves.find(leave => leave.trackIndex === index);
+            const leaveOnThisTrack = sortedActiveLeaves[index];
 
             return (
               <div
                 key={index}
-                className={`sub-cell cell-${index + 1} ${leaveOnThisTrack ? 'active' : ''}`}
+                className={`sub-cell ${leaveOnThisTrack ? 'active' : ''}`}
+                style={leaveOnThisTrack ? { backgroundColor: getLeaveColor(leaveOnThisTrack.name, leaveOnThisTrack.leaveType) } : {}}
                 title={leaveOnThisTrack ? `${leaveOnThisTrack.rank} ${leaveOnThisTrack.name} (${leaveOnThisTrack.leaveType})` : ''}
               >
                 {leaveOnThisTrack && (
