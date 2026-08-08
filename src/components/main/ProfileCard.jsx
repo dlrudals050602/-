@@ -60,15 +60,6 @@ function ProfileCard({ userProfile, isProfileComplete, onOpenCalendar, isCalenda
         </div>
       )}
 
-      {isProfileComplete && (
-        <button 
-          onClick={onOpenCalendar}
-          style={{ width: '100%', padding: '12px', backgroundColor: isCalendarOpen ? '#059669' : '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px', marginBottom: '10px' }}
-        >
-          {isCalendarOpen ? '📅 달력 접기' : '📅 출타 날짜 확인하기'}
-        </button>
-      )}
-
       <button 
         onClick={onEditProfile}
         style={{ width: '100%', padding: '10px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '10px' }}
