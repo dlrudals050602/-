@@ -150,9 +150,6 @@ function App() {
 
       <hr style={{ margin: '30px 0', border: 'none', borderTop: '1px solid #ddd' }} />
 
-      {/* 2. 하단 실시간 군 출타 현황판 (상대방 코드) */}
-      <h1 style={{ textAlign: 'center' }}>🎖️ 실시간 군 출타 현황판</h1>
-
       {loading ? (
         <div style={{ textAlign: 'center', marginTop: '50px' }}>
           <h3>🎖️ 실시간 출타 현황판 데이터를 불러오는 중...</h3>
@@ -171,6 +168,7 @@ function App() {
             </div>
           </div>
 
+
 {/* 2. 출타 신청서 (상대방 코드의 leaves 속성 포함하여 깔끔하게 통합) */}
           <div>
             <LeaveForm 
@@ -178,6 +176,7 @@ function App() {
               holidays={holidays} 
               leaves={leaves} 
             />
+=======
           </div>
         </div>
       )}

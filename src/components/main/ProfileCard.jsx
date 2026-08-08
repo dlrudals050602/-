@@ -3,6 +3,7 @@ import RankInsignia from '../RankInsignia';
 import { calculateRankAndDays } from '../../utils/military';
 
 function ProfileCard({ userProfile, isProfileComplete, onOpenCalendar, isCalendarOpen, onEditProfile, onSignOut }) {
+
   const { rank, daysServed, daysLeft, percentage } = isProfileComplete 
     ? calculateRankAndDays(userProfile.military_enlistment_date, userProfile.military_discharge_date)
     : { rank: '', daysServed: 0, daysLeft: 0, percentage: 0 };
@@ -60,12 +61,15 @@ function ProfileCard({ userProfile, isProfileComplete, onOpenCalendar, isCalenda
         </div>
       )}
 
+      {/* 2. 내 정보 설정/수정 버튼 */}
       <button 
         onClick={onEditProfile}
         style={{ width: '100%', padding: '10px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '10px' }}
       >
         {isProfileComplete ? '내 정보 수정하기' : '내 정보 설정하기'}
       </button>
+
+      {/* 3. 로그아웃 버튼 */}
 
       <button 
         onClick={onSignOut}

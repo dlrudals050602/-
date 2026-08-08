@@ -1,14 +1,17 @@
 
+
 /* 1. 캘린더 타일 기본 스타일 (오직 모바일 터치 환경 기준) */
 .react-calendar__tile {
   position: relative;
   /* 모바일 화면에 맞게 높이가 너무 크면 잘릴 수 있어, 상황에 따라 75px~90px 사이로 조절 추천 */
   height: 110px !important; 
 
+
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 6px 4px !important; 
+
 
   box-sizing: border-box;
   border-right: 1px solid #e2e8f0 !important; 
