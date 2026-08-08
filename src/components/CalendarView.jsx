@@ -13,16 +13,40 @@ const formatDateStr = (targetDate) => {
   return `${year}-${month}-${day}`;
 };
 
-function CalendarView({ leaves = [], date, onDateChange }) {
+function CalendarView({ leaves = [], holidays = [], date, onDateChange }) {
 
   const leavesByDateMap = useMemo(() => {
     return groupLeavesByDate(leaves);
   }, [leaves]);
 
+  const getTileClassName = ({ date, view }) => {
+      if (view === 'month') {
+        const dateStr = formatDateStr(date);
+        const dayOfWeek = date.getDay();
+        
+        const isSunday = dayOfWeek === 0;
+        const isSaturday = dayOfWeek === 6; // 📌 토요일 판별 추가
+        const isHoliday = holidays.some((h) => h.date === dateStr);
+
+        // 공휴일이거나 일요일이면 빨간색
+        if (isSunday || isHoliday) {
+          return 'holiday-tile';
+        }
+        
+        // 공휴일이 아닌 토요일이면 파란색
+        if (isSaturday) {
+          return 'saturday-tile';
+        }
+      }
+      return null;
+    };
+
   const renderTileContent = ({ date, view }) => {
     if (view === 'month') {
       const dateStr = formatDateStr(date);
       const activeLeaves = leavesByDateMap[dateStr] || [];
+
+      const holidayInfo = holidays.find((h) => h.date === dateStr);
 
       // 수직 적층 규칙: '휴가'가 항상 바닥(낮은 인덱스)에 배치되도록 정렬
       const sortedActiveLeaves = [...activeLeaves]
@@ -43,25 +67,34 @@ function CalendarView({ leaves = [], date, onDateChange }) {
         });
 
       return (
-        <div className="day-split-container">
-          {[0, 1, 2, 3, 4].map((index) => {
-            const leaveOnThisTrack = sortedActiveLeaves[index];
+        <div className="tile-content-wrapper">
+          {/* 📌 공휴일 이름 표시 영역 */}
+          {holidayInfo && (
+            <div className="holiday-name-label">
+              {holidayInfo.name}
+            </div>
+          )}
+          
+          <div className="day-split-container">
+            {[0, 1, 2, 3, 4].map((index) => {
+              const leaveOnThisTrack = sortedActiveLeaves[index];
 
-            return (
-              <div
-                key={index}
-                className={`sub-cell ${leaveOnThisTrack ? 'active' : ''}`}
-                style={leaveOnThisTrack ? { backgroundColor: getLeaveColor(leaveOnThisTrack.name, leaveOnThisTrack.leaveType) } : {}}
-                title={leaveOnThisTrack ? `${leaveOnThisTrack.rank} ${leaveOnThisTrack.name} (${leaveOnThisTrack.leaveType})` : ''}
-              >
-                {leaveOnThisTrack && (
-                  <span className="cell-text">
-                    {leaveOnThisTrack.name}
-                  </span>
-                )}
-              </div>
-            );
-          })}
+              return (
+                <div
+                  key={index}
+                  className={`sub-cell ${leaveOnThisTrack ? 'active' : ''}`}
+                  style={leaveOnThisTrack ? { backgroundColor: getLeaveColor(leaveOnThisTrack.name, leaveOnThisTrack.leaveType) } : {}}
+                  title={leaveOnThisTrack ? `${leaveOnThisTrack.rank} ${leaveOnThisTrack.name} (${leaveOnThisTrack.leaveType})` : ''}
+                >
+                  {leaveOnThisTrack && (
+                    <span className="cell-text">
+                      {leaveOnThisTrack.name}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       );
     }
@@ -74,6 +107,7 @@ function CalendarView({ leaves = [], date, onDateChange }) {
         onChange={onDateChange} 
         value={date} 
         locale="ko-KR" 
+        tileClassName = {getTileClassName}
         tileContent={renderTileContent}
       />
     </div>

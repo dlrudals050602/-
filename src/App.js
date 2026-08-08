@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import CalendarView from './components/CalendarView';
 import LeaveForm from './components/LeaveForm';
 import { fetchLeaves, applyLeave } from './services/leaveService';
@@ -10,12 +10,15 @@ function App() {
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
 
-  const loadData = async () => {
+  // 📌 선택된 캘린더 날짜의 연도 추출
+  const selectedYear = date.getFullYear();
+
+  // 📌 데이터 로드 함수 (연도 변경 시 해당 연도 공휴일 동적 조회)
+  const loadData = useCallback(async () => {
     try {
-      const currentYear = new Date().getFullYear();
       const [leaveData, holidayData] = await Promise.all([
         fetchLeaves(),
-        fetchHolidays(currentYear)
+        fetchHolidays(selectedYear) // 바뀐 holidayService의 fetchHolidays(year) 호출
       ]);
       setLeaves(leaveData);
       setHolidays(holidayData);
@@ -24,11 +27,12 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedYear]);
 
+  // 📌 최초 마운트 및 캘린더 연도(selectedYear) 변경 시 자동 실행
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleApplyLeave = async (newLeave) => {
     try {
@@ -43,7 +47,7 @@ function App() {
         if (confirmPending) {
           await applyLeave(newLeave, leaves, holidays, false, true); // forcePending = true
           alert('📥 대기 명단에 등록되었습니다.');
-          loadData();
+          await loadData();
         }
         return;
       }
@@ -54,7 +58,7 @@ function App() {
         if (userConfirmed) {
           await applyLeave(newLeave, leaves, holidays, true); // userConfirmed = true
           alert(`🎉 ${newLeave.name}님의 휴가가 승인되었으며, 기존 외출자 1명이 대기 전환되었습니다.`);
-          loadData();
+          await loadData();
         }
         return;
       }
@@ -62,7 +66,7 @@ function App() {
       // C. 정상 승인된 경우
       if (res.status === 'active') {
         alert(`🎉 ${newLeave.name}님의 출타 등록 완료!`);
-        loadData();
+        await loadData();
       }
     } catch (error) {
       alert('⚠️ 에러 발생: ' + error.message);
@@ -89,6 +93,7 @@ function App() {
         <div>
           <CalendarView 
             leaves={leaves} 
+            holidays={holidays} // 📌 캘린더 뷰에서 빨간날/공휴일 표시용 데이터 전달
             date={date} 
             onDateChange={setDate} 
           />

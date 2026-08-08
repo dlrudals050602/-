@@ -1,5 +1,4 @@
 import {supabase} from '../supabaseClient';
-import { checkIsHoliday } from './holidayService';
 
 export const LEAVES_TYPES = {
     VACATION: '휴가',
@@ -83,14 +82,10 @@ export const checkAvailability = (newLeave, existingLeaves = [], cachedHolidays 
   const endDate = cleanDateStr(newLeave.endDate);
   const dates = getDatesInRange(startDate, endDate);
 
-  // 1. [추가 2] 외박 자격조건 검증 (1박 2일 & 주말/공휴일 필수)
+  // 1. 외박 조건 검증 (1박 2일 여부만 확인)
   if (newLeave.leaveType === LEAVES_TYPES.OVERNIGHT) {
     if (dates.length !== 2) {
       return { available: false, reason: '⚠️ 외박은 반드시 1박 2일(연속 2일) 기간으로만 신청 가능합니다.' };
-    }
-    const isAllHolidays = dates.every(d => checkIsHoliday(d, cachedHolidays));
-    if (!isAllHolidays) {
-      return { available: false, reason: '⚠️ 외박은 시작일과 종료일이 모두 주말 또는 공휴일이어야 합니다.' };
     }
   }
 
@@ -98,7 +93,7 @@ export const checkAvailability = (newLeave, existingLeaves = [], cachedHolidays 
   let requiresForceConfirm = false;
   let overflowDates = [];
 
-for (const d of dates) {
+  for (const d of dates) {
     const activeOnDay = existingLeaves.filter((leave) => {
       const lStatus = leave.status || LEAVE_STATUS.ACTIVE;
       const lStart = cleanDateStr(leave.startDate);
@@ -110,7 +105,7 @@ for (const d of dates) {
     const vacationsCount = activeOnDay.filter((l) => isVacation(l.leaveType)).length;
     const totalCount = activeOnDay.length;
 
-    // A. 휴가 정원 체크 (3명 초과 시 무조건 차단)
+    // A. 휴가 정원 체크 (3명)
     if (isVacation(newLeave.leaveType)) {
       if (vacationsCount + 1 > MAX_VACATION_PER_DAY) {
         return { 
@@ -120,10 +115,9 @@ for (const d of dates) {
       }
     }
 
-    // B. 총원 체크 (5명 초과 시)
+    // B. 총원 체크 (5명)
     if (totalCount + 1 > MAX_TOTAL_LEAVE_PER_DAY) {
       if (isVacation(newLeave.leaveType)) {
-        // 휴가 3명 미만인데 총원 5명이 찬 경우: 기존 외출/외박자를 대기 전환하도록 알림 플래그 설정
         requiresForceConfirm = true;
         overflowDates.push(d);
       } else {
@@ -143,7 +137,7 @@ for (const d of dates) {
     };
   }
 
-  // 3. 가장 아래 빈 트랙 탐색 (0 ~ 4)
+  // 3. 빈 트랙 탐색 및 상태 확정
   for (let track = 0; track < MAX_TOTAL_LEAVE_PER_DAY; track++) {
     const isTrackFree = !dates.some((d) =>
       existingLeaves.some((leave) => {
@@ -166,6 +160,54 @@ for (const d of dates) {
   }
 
   return { available: false, reason: '⚠️ 선택하신 일정 중에 빈 트랙 자리가 없어 대기 상태로 등록됩니다.' };
+};
+
+/**
+ * 기존 출타 삭제/취소 시 대기자(PENDING)를 선착순으로 ACTIVE 전환해주는 함수
+ */
+export const promotePendingLeaves = (leaves, cachedHolidays = []) => {
+  // 1. 현재 ACTIVE 상태인 출타 목록
+  const activeLeaves = leaves.filter(
+    (l) => (l.status || LEAVE_STATUS.ACTIVE) === LEAVE_STATUS.ACTIVE
+  );
+
+  // 2. PENDING 상태인 출타 목록 (신청 일시 선착순 정렬)
+  const pendingLeaves = leaves
+    .filter((l) => l.status === LEAVE_STATUS.PENDING)
+    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+
+  let currentActive = [...activeLeaves];
+  const promotedIds = new Set();
+  const promotedList = [];
+
+  // 3. 대기 건들을 하나씩 검증하여 승인 처리
+  for (const pending of pendingLeaves) {
+    const check = checkAvailability(pending, currentActive, cachedHolidays);
+
+    // 정원 내 자리가 있고 트랙 할당이 가능하면 ACTIVE로 승인
+    if (check.available && check.trackIndex !== undefined) {
+      const activatedLeave = {
+        ...pending,
+        status: LEAVE_STATUS.ACTIVE,
+        trackIndex: check.trackIndex
+      };
+
+      currentActive.push(activatedLeave);
+      promotedIds.add(pending.id);
+      promotedList.push(activatedLeave);
+    }
+  }
+
+  // 4. 업데이트된 전체 leaves 배열 반환
+  const updatedLeaves = leaves.map((leave) => {
+    if (promotedIds.has(leave.id)) {
+      const promoted = promotedList.find((p) => p.id === leave.id);
+      return promoted;
+    }
+    return leave;
+  });
+
+  return { updatedLeaves, promotedList };
 };
 
 // DB Snake_case -> JS CamelCase 매핑

@@ -27,3 +27,45 @@
   height: 100%;
   box-sizing: border-box;
 }
+
+/* 공휴일 및 일요일 날짜 텍스트 빨간색 설정 */
+.react-calendar__tile.holiday-tile {
+  color: #e53e3e !important;
+}
+
+.react-calendar__tile.holiday-tile abbr {
+  color: #e53e3e !important;
+  font-weight: bold;
+}
+
+/* 📌 추가: 토요일 (파란색) */
+.react-calendar__tile.saturday-tile {
+  color: #3182ce !important; /* 파란색 코드 */
+}
+.react-calendar__tile.saturday-tile abbr {
+  color: #3182ce !important;
+  font-weight: bold;
+}
+
+/* 📌 캘린더 타일 내부 컨텐츠 래퍼 */
+.tile-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* 📌 공휴일 이름 텍스트 스타일 */
+.holiday-name-label {
+  font-size: 0.65rem;
+  color: #e53e3e;
+  font-weight: 700;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
