@@ -1,5 +1,5 @@
 // src/components/CalendarView.jsx
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './CalendarView.css';
@@ -14,52 +14,87 @@ const formatDateStr = (targetDate) => {
 };
 
 function CalendarView({ leaves = [], holidays = [], date, onDateChange }) {
+  // 1. 시작 날짜 / 종료 날짜 state 및 DB 데이터 state
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [dbData, setDbData] = useState({});
 
+  // 상대방이 추가한 휴가 데이터 그룹화
   const leavesByDateMap = useMemo(() => {
     return groupLeavesByDate(leaves);
   }, [leaves]);
 
+  // 토요일/일요일/공휴일 스타일 지정을 위한 클래스 생성
   const getTileClassName = ({ date, view }) => {
-      if (view === 'month') {
-        const dateStr = formatDateStr(date);
-        const dayOfWeek = date.getDay();
-        
-        const isSunday = dayOfWeek === 0;
-        const isSaturday = dayOfWeek === 6; // 📌 토요일 판별 추가
-        const isHoliday = holidays.some((h) => h.date === dateStr);
-
-        // 공휴일이거나 일요일이면 빨간색
-        if (isSunday || isHoliday) {
-          return 'holiday-tile';
-        }
-        
-        // 공휴일이 아닌 토요일이면 파란색
-        if (isSaturday) {
-          return 'saturday-tile';
-        }
-      }
-      return null;
-    };
-
-  const renderTileContent = ({ date, view }) => {
     if (view === 'month') {
       const dateStr = formatDateStr(date);
-      const activeLeaves = leavesByDateMap[dateStr] || [];
+      const dayOfWeek = date.getDay();
 
+      const isSunday = dayOfWeek === 0;
+      const isSaturday = dayOfWeek === 6;
+      const isHoliday = holidays.some((h) => h.date === dateStr);
+
+      if (isSunday || isHoliday) {
+        return 'holiday-tile';
+      }
+
+      if (isSaturday) {
+        return 'saturday-tile';
+      }
+    }
+    return null;
+  };
+
+  // 2. 시작일~종료일을 DB로 전송하는 함수 (내가 작성한 기능)
+  const handleDbSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!startDate || !endDate) {
+      return alert('시작 날짜와 종료 날짜를 모두 선택해주세요!');
+    }
+
+    if (startDate > endDate) {
+      return alert('시작 날짜는 종료 날짜보다 이전이어야 합니다.');
+    }
+
+    try {
+      const response = await fetch('/api/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startDate: startDate,
+          endDate: endDate,
+        }),
+      });
+
+      const result = await response.json();
+      setDbData(result);
+
+      const [year, month, day] = startDate.split('-');
+      onDateChange(new Date(Number(year), Number(month) - 1, Number(day)));
+
+      alert('기간 데이터 전송 및 달력 업데이트 완료!');
+    } catch (error) {
+      console.error('DB 통신 중 오류 발생:', error);
+    }
+  };
+
+  // 3. 달력의 각 날짜(tile)마다 휴가/공휴일 렌더링 (상대방이 작성한 상세 로직 적용)
+  const renderTileContent = ({ date: tileDate, view }) => {
+    if (view === 'month') {
+      const dateStr = formatDateStr(tileDate);
+      const activeLeaves = leavesByDateMap[dateStr] || [];
       const holidayInfo = holidays.find((h) => h.date === dateStr);
 
-      // 수직 적층 규칙: '휴가'가 항상 바닥(낮은 인덱스)에 배치되도록 정렬
       const sortedActiveLeaves = [...activeLeaves]
-        .filter(leave => leave.status === 'active')
+        .filter((leave) => leave.status === 'active')
         .sort((a, b) => {
           const isVacationA = a.leaveType === '휴가';
           const isVacationB = b.leaveType === '휴가';
 
-          // 1. 휴가를 아래쪽(낮은 인덱스)으로 정렬
           if (isVacationA && !isVacationB) return -1;
           if (!isVacationA && isVacationB) return 1;
 
-          // 2. 동일 종목 내에서는 신청 일시 순 정렬
           if (a.createdAt && b.createdAt) {
             return new Date(a.createdAt) - new Date(b.createdAt);
           }
@@ -68,13 +103,12 @@ function CalendarView({ leaves = [], holidays = [], date, onDateChange }) {
 
       return (
         <div className="tile-content-wrapper">
-          {/* 📌 공휴일 이름 표시 영역 */}
           {holidayInfo && (
             <div className="holiday-name-label">
               {holidayInfo.name}
             </div>
           )}
-          
+
           <div className="day-split-container">
             {[0, 1, 2, 3, 4].map((index) => {
               const leaveOnThisTrack = sortedActiveLeaves[index];
@@ -103,12 +137,40 @@ function CalendarView({ leaves = [], holidays = [], date, onDateChange }) {
 
   return (
     <div className="calendar-container">
+      {/* 내가 작성한 시작일/종료일 폼 영역 */}
+      <form onSubmit={handleDbSubmit} style={{ marginBottom: '20px', display: 'flex', gap: '10px', justifyContent: 'center', alignItems: 'center' }}>
+        <div>
+          <label style={{ marginRight: '5px', fontSize: '14px' }}>시작:</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+        </div>
+
+        <div>
+          <label style={{ marginRight: '5px', fontSize: '14px' }}>종료:</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+        </div>
+
+        <button type="submit" style={{ padding: '6px 14px', borderRadius: '4px', cursor: 'pointer' }}>
+          DB 전송
+        </button>
+      </form>
+
+      {/* 두 사람의 옵션이 모두 결합된 달력 컴포넌트 */}
       <Calendar 
         onChange={onDateChange} 
         value={date} 
         locale="ko-KR" 
-        tileClassName = {getTileClassName}
-        tileContent={renderTileContent}
+        tileClassName={getTileClassName}
+        tileContent={renderTileContent} 
       />
     </div>
   );
