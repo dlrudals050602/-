@@ -1,3 +1,4 @@
+/* 1. 캘린더 타일 기본 스타일 (투박한 검은 테두리를 부드러운 연회색으로 개선) */
 .react-calendar__tile {
   position: relative;
   height: 90px !important; 
@@ -5,67 +6,89 @@
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
-  padding: 8px 0px !important; 
+  padding: 6px 4px !important; /* 상하좌우 패딩 조정 */
   box-sizing: border-box;
-  border-right: 1px solid #000000 !important;
-  border-bottom: 1px solid #000000 !important;
+  border-right: 1px solid #e2e8f0 !important; /* 너무 진한 검은색 대신 모던한 톤 */
+  border-bottom: 1px solid #e2e8f0 !important;
+  background-color: #ffffff;
+  transition: background-color 0.2s ease;
 }
 
-.day-split-container {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr); /* 가로로 균등하게 5등분 */
-  width: 100%;
-  height: 35px; 
-  gap: 2px; /* 칸 사이의 아주 작은 간격 */
-  margin-top: auto; /* 날짜 숫자보다 아래쪽에 배치 */
+/* 마우스 올렸을 때 살짝 색상 변하게 (UX 향상) */
+.react-calendar__tile:hover {
+  background-color: #f8fafc !important;
 }
 
-/* 4. 개별 분할 칸 스타일 */
-.sub-cell {
-  background-color: #e0e0e0; /* 기본 배경 회색 */
-  border-radius: 0px;
-  height: 100%;
-  box-sizing: border-box;
-}
-
-/* 공휴일 및 일요일 날짜 텍스트 빨간색 설정 */
-.react-calendar__tile.holiday-tile {
-  color: #e53e3e !important;
-}
-
-.react-calendar__tile.holiday-tile abbr {
-  color: #e53e3e !important;
-  font-weight: bold;
-}
-
-/* 📌 추가: 토요일 (파란색) */
-.react-calendar__tile.saturday-tile {
-  color: #3182ce !important; /* 파란색 코드 */
-}
-.react-calendar__tile.saturday-tile abbr {
-  color: #3182ce !important;
-  font-weight: bold;
-}
-
-/* 📌 캘린더 타일 내부 컨텐츠 래퍼 */
+/* 2. 타일 내부 컨텐츠 래퍼 (위아래 여백을 적절히 분배) */
 .tile-content-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: space-between; /* 날짜, 라벨, 분할칸 간격 자동 확보 */
   width: 100%;
   height: 100%;
 }
 
-/* 📌 공휴일 이름 텍스트 스타일 */
+/* 3. 분할 칸 컨테이너 */
+.day-split-container {
+  display: flex; 
+  flex-direction: column-reverse; /* 아래에서 위로 쌓임 */
+  width: 100%;
+  height: 40px; /* 이 수치는 서브셀들이 들어갈 공간입니다. 필요에 따라 조절하세요 */
+  flex-shrink: 0; /* 글자가 추가되어도 이 영역은 절대 쪼그라들지 않습니다 */
+  margin-top: auto; /* 빈 공간을 위쪽으로 넘기고, 분할 칸은 항상 타일의 맨 아래에 고정됩니다 */
+  
+  gap: 2px;
+}
+
+/* 4. 개별 분할 칸 (글자가 있어도 없어도 무조건 크기 고정!) */
+.sub-cell {
+  flex: 1 1 0%; /* 👈 핵심 1: 내용물(글자) 크기를 무시하고 무조건 1/N로 균등 분배! */
+  width: 100%; 
+  background-color: #e2e8f0; 
+  border-radius: 2px; 
+  box-sizing: border-box;
+
+  /* 👈 핵심 2: 텍스트가 칸을 뚫고 나가지 않도록 예쁘게 정렬 및 줄임 처리 */
+  display: flex;
+  align-items: center; /* 세로 중앙 정렬 */
+  justify-content: center; /* 가로 중앙 정렬 (왼쪽 정렬을 원하시면 flex-start로 변경) */
+  font-size: 0.6rem; /* 달력 칸에 맞게 글씨 크기 축소 */
+  font-weight: 600;
+  color: #334155; /* 진한 회색 (가독성 향상) */
+  white-space: nowrap; /* 글자가 길어도 절대 밑으로 줄바꿈 안 함 */
+  overflow: hidden; /* 칸을 넘어가는 글자는 숨김 */
+  text-overflow: ellipsis; /* 숨겨진 글자 끝에 '...' 표시 */
+  padding: 0 2px; /* 좌우 글자 여백 살짝 */
+}
+
+/* 5. 공휴일, 일요일, 토요일 글씨 색상 (트렌디한 색감으로 변경) */
+.react-calendar__tile.holiday-tile,
+.react-calendar__tile.holiday-tile abbr {
+  color: #ef4444 !important; /* 조금 더 화사한 빨간색 */
+  font-weight: 600;
+}
+
+.react-calendar__tile.saturday-tile,
+.react-calendar__tile.saturday-tile abbr {
+  color: #3b82f6 !important; /* 화사한 파란색 */
+  font-weight: 600;
+}
+
+/* 6. 공휴일 이름 텍스트 (라벨처럼 보이게 옅은 배경 추가) */
 .holiday-name-label {
-  font-size: 0.65rem;
-  color: #e53e3e;
+  font-size: 0.7rem; 
+  transform: scale(0.85); /* 좁은 칸에서 텍스트가 잘 나오도록 약간 축소 */
+  color: #ef4444;
   font-weight: 700;
-  margin-top: 2px;
-  margin-bottom: 2px;
+  margin-top: 1px; /* 공간 절약 */
+  line-height: 1.2; /* 라벨 자체의 높이를 압축 */
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  width: 100%;
+  width: 100%; 
+  background-color: #fee2e2; 
+  border-radius: 4px; 
+  padding: 1px 0; 
 }

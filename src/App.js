@@ -82,18 +82,17 @@ function App() {
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1>🎖️ 실시간 군 출타 현황판</h1>
+    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+      <h1 style={{ textAlign: 'center' }}>🎖️ 실시간 군 출타 현황판</h1>
       
-      <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '30px', marginTop: '20px' }}>
-        <div>
-          <LeaveForm onApply={handleApplyLeave} holidays={holidays} />
-        </div>
-
+      {/* 👇 수정한 부분: flex-direction을 column으로 변경하여 위아래 배치 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', marginTop: '20px' }}>
+        
+        {/* 1. 달력 (메인, 상단 배치) */}
         <div>
           <CalendarView 
             leaves={leaves} 
-            holidays={holidays} // 📌 캘린더 뷰에서 빨간날/공휴일 표시용 데이터 전달
+            holidays={holidays} 
             date={date} 
             onDateChange={setDate} 
           />
@@ -101,6 +100,12 @@ function App() {
             <h3>선택한 날짜: {date.toLocaleDateString()}</h3>
           </div>
         </div>
+
+        {/* 2. 출타 신청서 (달력 바로 아래 배치) */}
+        <div>
+          <LeaveForm onApply={handleApplyLeave} holidays={holidays} />
+        </div>
+
       </div>
     </div>
   );
