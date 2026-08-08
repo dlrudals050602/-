@@ -1,5 +1,6 @@
 // src/components/LeaveForm.jsx
 import React, { useState, useEffect } from 'react';
+import MiniCalendar from './MiniCalendar';
 import { checkIsHoliday } from '../services/holidayService';
 import './LeaveForm.css';
 
@@ -16,6 +17,14 @@ const LEAVE_TYPE = {
   VACATION: '휴가',
   GO_OUT: '외출',
   STAY_OUT: '외박',
+};
+
+const formatDateStr = (targetDate) => {
+  if (!targetDate) return '';
+  const year = targetDate.getFullYear();
+  const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const day = String(targetDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // 2️⃣ 날짜 유틸리티 함수 분리 (중복 제거)
@@ -41,8 +50,11 @@ const addDaysToDateString = (dateString, daysToAdd) => {
   return `${y}-${m}-${d}`;
 };
 
-function LeaveForm({ onApply, holidays = [] }) {
+function LeaveForm({ onApply, holidays = [], leaves = [] }) {
   const [formData, setFormData] = useState(INITIAL_STATE);
+
+  const [showStartCalendar, setShowStartCalendar] = useState(false);
+  const [showEndCalendar, setShowEndCalendar] = useState(false);
 
   // 🔄 UI 보조: 외출/외박 선택 시 종료일 자동 계산
   useEffect(() => {
@@ -146,29 +158,69 @@ function LeaveForm({ onApply, holidays = [] }) {
           </select>
         </div>
 
-        <div className="form-group">
+        <div className="form-group position-relative">
           <label htmlFor="startDate">출타 시작일</label>
           <input 
             id="startDate"
-            name="startDate"
-            type="date" 
+            type="text" 
             value={formData.startDate} 
-            onChange={handleChange} 
+            placeholder="클릭하여 날짜 선택"
+            onClick={() => {
+              setShowStartCalendar(true);
+              setShowEndCalendar(false);
+            }}
+            readOnly 
             required
           />
+          
+          {/* 🟢 시작일 커스텀 달력 렌더링 */}
+          {showStartCalendar && (
+            <div className="calendar-popup-wrapper">
+              <MiniCalendar 
+                holidays={holidays}
+                leaves={leaves} // 선택창에서도 기존 출타자를 볼 수 있도록 넘겨줌
+                date={formData.startDate ? parseDate(formData.startDate) : new Date()}
+                onDateChange={(dateObj) => {
+                  setFormData(prev => ({ ...prev, startDate: formatDateStr(dateObj) }));
+                  setShowStartCalendar(false); // 선택 시 팝업 닫기
+                }}
+              />
+              <button type="button" className="close-popup-btn" onClick={() => setShowStartCalendar(false)}>닫기</button>
+            </div>
+          )}
         </div>
 
         {!isSingleDateLeave ? (
-          <div className="form-group">
+          <div className="form-group position-relative">
             <label htmlFor="endDate">출타 종료일</label>
             <input 
               id="endDate"
-              name="endDate"
-              type="date" 
+              type="text" 
               value={formData.endDate} 
-              onChange={handleChange} 
+              placeholder="클릭하여 날짜 선택"
+              onClick={() => {
+                setShowEndCalendar(true);
+                setShowStartCalendar(false);
+              }}
+              readOnly
               required
             />
+            
+            {/* 🟢 종료일 커스텀 달력 렌더링 */}
+            {showEndCalendar && (
+              <div className="calendar-popup-wrapper">
+                <MiniCalendar 
+                  holidays={holidays}
+                  leaves={leaves}
+                  date={formData.endDate ? parseDate(formData.endDate) : new Date()}
+                  onDateChange={(dateObj) => {
+                    setFormData(prev => ({ ...prev, endDate: formatDateStr(dateObj) }));
+                    setShowEndCalendar(false);
+                  }}
+                />
+                <button type="button" className="close-popup-btn" onClick={() => setShowEndCalendar(false)}>닫기</button>
+              </div>
+            )}
           </div>
         ) : (
           formData.startDate && (

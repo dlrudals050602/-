@@ -103,7 +103,12 @@ function App() {
 
         {/* 2. 출타 신청서 (달력 바로 아래 배치) */}
         <div>
-          <LeaveForm onApply={handleApplyLeave} holidays={holidays} />
+          <LeaveForm 
+            onApply={handleApplyLeave} 
+            holidays={holidays} 
+            leaves={leaves}
+          />
+
         </div>
 
       </div>
