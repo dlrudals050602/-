@@ -137,33 +137,6 @@ function CalendarView({ leaves = [], holidays = [], date, onDateChange }) {
 
   return (
     <div className="calendar-container">
-      {/* 내가 작성한 시작일/종료일 폼 영역 */}
-      <form onSubmit={handleDbSubmit} style={{ marginBottom: '20px', display: 'flex', gap: '10px', justifyContent: 'center', alignItems: 'center' }}>
-        <div>
-          <label style={{ marginRight: '5px', fontSize: '14px' }}>시작:</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-        </div>
-
-        <div>
-          <label style={{ marginRight: '5px', fontSize: '14px' }}>종료:</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-        </div>
-
-        <button type="submit" style={{ padding: '6px 14px', borderRadius: '4px', cursor: 'pointer' }}>
-          DB 전송
-        </button>
-      </form>
-
       {/* 두 사람의 옵션이 모두 결합된 달력 컴포넌트 */}
       <Calendar 
         onChange={onDateChange} 

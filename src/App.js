@@ -150,9 +150,6 @@ function App() {
 
       <hr style={{ margin: '30px 0', border: 'none', borderTop: '1px solid #ddd' }} />
 
-      {/* 2. 하단 실시간 군 출타 현황판 (상대방 코드) */}
-      <h1 style={{ textAlign: 'center' }}>🎖️ 실시간 군 출타 현황판</h1>
-
       {loading ? (
         <div style={{ textAlign: 'center', marginTop: '50px' }}>
           <h3>🎖️ 실시간 출타 현황판 데이터를 불러오는 중...</h3>
