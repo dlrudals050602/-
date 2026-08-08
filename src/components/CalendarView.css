@@ -1,29 +1,87 @@
-.react-calendar__tile {
-  position: relative;
-  height: 90px !important; 
+/* 1. 달력 전체 컨테이너 */
+.calendar-container {
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
   align-items: center;
-  padding: 8px 0px !important; 
+  justify-content: center;
+  max-width: 600px; /* 가로 폭을 살짝 정돈 */
+  margin: 20px auto;
+  padding: 0 16px;
   box-sizing: border-box;
-  border-right: 1px solid #000000 !important;
-  border-bottom: 1px solid #000000 !important;
 }
 
+/* 2. react-calendar 기본 틀 */
+.react-calendar {
+  width: 100% !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  font-family: inherit;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+/* 3. 달력 전체 세로 높이 조절 (클래스명 오타 수정: weekDays -> weekdays) */
+.react-calendar__month-view__weekdays {
+  border-bottom: 1px solid #d1d5db !important;
+}
+
+/* 요일 헤더 중 일요일 빨간색, 토요일 파란색 */
+.react-calendar__month-view__weekdays__weekday:first-child {
+  color: #ef4444 !important;
+}
+.react-calendar__month-view__weekdays__weekday:last-child {
+  color: #3b82f6 !important;
+}
+
+/* 4. 개별 날짜 타일 고정 높이 설정 (weeks 전체를 누르는 대신 타일에 고정 높이 부여) */
+.react-calendar__tile {
+  position: relative;
+  height: 65px !important; /* 각 타일 높이를 65px로 고정하여 세로 길이를 축소 */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 3px !important; /* 내부 여백 축소 */
+  box-sizing: border-box;
+  border-right: 1px solid #e5e7eb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* 날짜 숫자 폰트 크기 및 여백 조정 */
+.react-calendar__tile abbr {
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+/* 일요일/토요일 날짜 색상 */
+.react-calendar__month-view__days__day--weekend:nth-child(7n + 1) {
+  color: #ef4444 !important;
+}
+.react-calendar__month-view__days__day--weekend:nth-child(7n) {
+  color: #3b82f6 !important;
+}
+
+/* 5. 5등분 서브 셀 컨테이너 */
 .day-split-container {
   display: grid;
-  grid-template-columns: repeat(1fr, 5); /* 가로로 균등하게 5등분 */
+  grid-template-columns: repeat(5, 1fr);
   width: 100%;
-  height: 35px; 
-  gap: 2px; /* 칸 사이의 아주 작은 간격 */
-  margin-top: auto; /* 날짜 숫자보다 아래쪽에 배치 */
+  height: 18px; /* 타일 세로 축소에 맞춰 서브셀 높이 조정 */
+  gap: 2px;
+  margin-top: auto;
 }
 
-/* 4. 개별 분할 칸 스타일 */
+/* 6. 개별 분할 칸 스타일 */
 .sub-cell {
-  background-color: #e0e0e0; /* 기본 배경 회색 */
-  border-radius: 0px;
+  background-color: #e5e7eb;
+  border-radius: 2px;
   height: 100%;
   box-sizing: border-box;
+}
+
+/* DB 연결용 활성화 상태 */
+.sub-cell.active {
+  background-color: #3b82f6;
 }
