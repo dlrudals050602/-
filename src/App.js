@@ -7,6 +7,7 @@ import CalendarView from './components/CalendarView';
 import LeaveForm from './components/LeaveForm';
 import { fetchLeaves, applyLeave } from './services/leaveService';
 import { fetchHolidays } from './services/holidayService';
+import {calculateRankAndDays} from './utils/military';
 
 function App() {
   // 1. 회원가입/로그인 및 프로필 상태 (내 코드)
@@ -22,13 +23,35 @@ function App() {
   // 내 프로필 정보 불러오기
   const fetchUserProfile = async (userId) => {
     if (!userId) return null;
-    const { data } = await supabase
+    // Supabase에서 프로필 정보를 가져오는 로직
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .maybeSingle();
-    return data;
-  };
+
+    if (error|| !data) { return data; }
+
+    if (data.military_enlistment_date && data.military_discharge_date) {
+      const { rank: calculatedRank } = calculateRankAndDays(
+        data.military_enlistment_date,
+        data.military_discharge_date
+      );
+
+// 3. DB의 rank와 계산된 rank가 다르면 DB(profiles) 업데이트!
+    if (calculatedRank && data.rank !== calculatedRank) {
+      await supabase
+        .from('profiles')
+        .update({ rank: calculatedRank })
+        .eq('id', userId);
+
+      // 반환할 객체의 rank도 최신 계산값으로 교체
+      data.rank = calculatedRank;
+    }
+  }
+
+  return data;
+};
 
   // 로그인 상태 감지 (Supabase Auth)
   useEffect(() => {
@@ -115,6 +138,11 @@ function App() {
       if (res.status === 'active') {
         alert(`🎉 ${newLeave.name}님의 출타 등록 완료!`);
         await loadData();
+
+        if(user?.id) {
+          const updatedProfile = await fetchUserProfile(user.id);
+          setUserProfile(updatedProfile);
+        }
       }
     } catch (error) {
       alert('⚠️ 에러 발생: ' + error.message);
@@ -175,8 +203,8 @@ function App() {
               onApply={handleApplyLeave} 
               holidays={holidays} 
               leaves={leaves} 
+              userProfile={userProfile}
             />
-=======
           </div>
         </div>
       )}

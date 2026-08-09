@@ -50,11 +50,21 @@ const addDaysToDateString = (dateString, daysToAdd) => {
   return `${y}-${m}-${d}`;
 };
 
-function LeaveForm({ onApply, holidays = [], leaves = [] }) {
+function LeaveForm({ onApply, holidays = [], leaves = [], userProfile }) {
   const [formData, setFormData] = useState(INITIAL_STATE);
 
   const [showStartCalendar, setShowStartCalendar] = useState(false);
   const [showEndCalendar, setShowEndCalendar] = useState(false);
+
+  useEffect(() => {
+    if (userProfile) {
+      setFormData(prev => ({
+        ...prev,
+        name: userProfile.full_name || userProfile.username || '',
+        rank: userProfile.rank || '이병'
+      }));
+    }
+  }, [userProfile]);
 
   // 🔄 UI 보조: 외출/외박 선택 시 종료일 자동 계산
   useEffect(() => {
@@ -88,6 +98,15 @@ function LeaveForm({ onApply, holidays = [], leaves = [] }) {
 
     const diffDays = getDiffDays(startDate, endDate);
 
+    // 🔑 남은 연가 일수 검증 (휴가인 경우)
+    if (leaveType === LEAVE_TYPE.VACATION && userProfile) {
+      const remainingDays = userProfile.vacation_days ?? 0;
+      if (remainingDays < diffDays) {
+        alert(`⚠️ 보유 휴가 일수(${remainingDays}일)보다 신청 일수(${diffDays}일)가 많습니다.`);
+        return;
+      }
+    }
+
     // 1. 🏖️ 휴가 15일 초과 체크
     if (leaveType.includes(LEAVE_TYPE.VACATION) && diffDays > 15) {
       if (!window.confirm(`⚠️ 휴가 기간이 15일을 초과했습니다 (신청 기간: ${diffDays}일).\n그래도 신청하시겠습니까?`)) {
@@ -102,7 +121,7 @@ function LeaveForm({ onApply, holidays = [], leaves = [] }) {
     }
 
     // 3. 평일 안내 팝업 (외박/외출)
-    if (leaveType === LEAVE_TYPE.STAY_OUT || leaveType === LEAVE_TYPE.GO_OUT) {
+    if (leaveType === LEAVE_TYPE.STAY_OUT ) {
       const isStartHoliday = checkIsHoliday(startDate, holidays);
       const isEndHoliday = checkIsHoliday(endDate, holidays);
 
@@ -113,42 +132,48 @@ function LeaveForm({ onApply, holidays = [], leaves = [] }) {
       }
     }
 
-    // 실제 비즈니스 검증 및 신청 처리는 부모 컴포넌트로 위임
-    onApply(formData);
-    
-    // 폼 초기화
+    const userName = userProfile.full_name || userProfile.username || '신청자';
+    const userRank = userProfile.rank || '이병';
+    onApply({
+      ...formData,
+      name: userName,
+      rank: userRank,
+      userId: userProfile?.id,
+      usedDays: diffDays
+    });
+
     setFormData(INITIAL_STATE);
-  };
+  };  
 
   const isSingleDateLeave = formData.leaveType === LEAVE_TYPE.GO_OUT || formData.leaveType === LEAVE_TYPE.STAY_OUT;
 
   return (
     <div className="form-container">
       <h3 className="form-title">✍️ 출타 신청서</h3>
+
+      {/* 🔑 이름/계급 입력란 대신 프로필 정보를 상단 카드 형태로 안내 */}
+      {userProfile && (
+        <div style={{
+          backgroundColor: '#f8f9fa',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          fontSize: '0.95rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          border: '1px solid #e9ecef'
+        }}>
+          <div>
+            신청자: <strong>{userProfile.rank || '이병'} {userProfile.full_name || userProfile.username}</strong>
+          </div>
+          <div>
+            잔여 휴가: <strong style={{ color: '#1a73e8' }}>{userProfile.vacation_days ?? 0}일</strong>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="leave-form">
-        
-        <div className="form-group">
-          <label htmlFor="name">이름</label>
-          <input 
-            id="name"
-            name="name"
-            type="text" 
-            value={formData.name} 
-            onChange={handleChange}
-            required 
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="rank">계급</label>
-          <select id="rank" name="rank" value={formData.rank} onChange={handleChange}>
-            <option value="이병">이병</option>
-            <option value="일병">일병</option>
-            <option value="상병">상병</option>
-            <option value="병장">병장</option>
-          </select>
-        </div>
-
         <div className="form-group">
           <label htmlFor="leaveType">출타 종류</label>
           <select id="leaveType" name="leaveType" value={formData.leaveType} onChange={handleChange}>
@@ -173,16 +198,15 @@ function LeaveForm({ onApply, holidays = [], leaves = [] }) {
             required
           />
           
-          {/* 🟢 시작일 커스텀 달력 렌더링 */}
           {showStartCalendar && (
             <div className="calendar-popup-wrapper">
               <MiniCalendar 
                 holidays={holidays}
-                leaves={leaves} // 선택창에서도 기존 출타자를 볼 수 있도록 넘겨줌
+                leaves={leaves}
                 date={formData.startDate ? parseDate(formData.startDate) : new Date()}
                 onDateChange={(dateObj) => {
                   setFormData(prev => ({ ...prev, startDate: formatDateStr(dateObj) }));
-                  setShowStartCalendar(false); // 선택 시 팝업 닫기
+                  setShowStartCalendar(false);
                 }}
               />
               <button type="button" className="close-popup-btn" onClick={() => setShowStartCalendar(false)}>닫기</button>
@@ -206,7 +230,6 @@ function LeaveForm({ onApply, holidays = [], leaves = [] }) {
               required
             />
             
-            {/* 🟢 종료일 커스텀 달력 렌더링 */}
             {showEndCalendar && (
               <div className="calendar-popup-wrapper">
                 <MiniCalendar 

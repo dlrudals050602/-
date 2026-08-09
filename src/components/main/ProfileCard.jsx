@@ -2,9 +2,9 @@ import React from 'react';
 import RankInsignia from '../RankInsignia';
 import { calculateRankAndDays } from '../../utils/military';
 
-function ProfileCard({ userProfile, isProfileComplete, onOpenCalendar, isCalendarOpen, onEditProfile, onSignOut }) {
+function ProfileCard({ userProfile, isProfileComplete, onEditProfile, onSignOut }) {
 
-  const { rank, daysServed, daysLeft, percentage } = isProfileComplete 
+  const { rank, daysServed, daysLeft, percentage } = isProfileComplete && userProfile
     ? calculateRankAndDays(userProfile.military_enlistment_date, userProfile.military_discharge_date)
     : { rank: '', daysServed: 0, daysLeft: 0, percentage: 0 };
 
