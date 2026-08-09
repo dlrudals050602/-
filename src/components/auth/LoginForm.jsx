@@ -97,15 +97,6 @@ function LoginForm({ onLoginSuccess, onGoToSignup, onGoToForgotPassword }) {
         </p>
       )}
 
-      <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '13px' }}>
-        <button 
-          onClick={onGoToForgotPassword}
-          style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', textDecoration: 'underline' }}
-        >
-          비밀번호를 잊으셨나요?
-        </button>
-      </div>
-
       <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '14px' }}>
         계정이 없으신가요?{' '}
         <button 
