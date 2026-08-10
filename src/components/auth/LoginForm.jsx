@@ -37,7 +37,6 @@ function LoginForm({ onLoginSuccess, onGoToSignup, onGoToForgotPassword }) {
     });
 
     if (loginError) {
-      // 미인증 상태이거나 비밀번호가 틀린 경우 모두 존재하지 않거나 비밀번호 오류 처리
       if (loginError.message.includes('Email not confirmed')) {
         setMessage('로그인 실패: 존재하지 않는 계정입니다.');
         return;
@@ -71,7 +70,8 @@ function LoginForm({ onLoginSuccess, onGoToSignup, onGoToForgotPassword }) {
           />
         </div>
 
-        <div style={{ marginBottom: '15px' }}>
+        {/* 비밀번호 입력창 및 하단 중앙 버튼 */}
+        <div style={{ marginBottom: '20px' }}>
           <label style={{ fontSize: '14px', fontWeight: '600' }}>비밀번호</label>
           <input
             type="password"
@@ -81,6 +81,15 @@ function LoginForm({ onLoginSuccess, onGoToSignup, onGoToForgotPassword }) {
             required
             style={{ width: '100%', padding: '10px', marginTop: '6px', borderRadius: '6px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
           />
+          <div style={{ textAlign: 'center', marginTop: '8px' }}>
+            <button
+              type="button"
+              onClick={onGoToForgotPassword}
+              style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              비밀번호를 잊으셨나요?
+            </button>
+          </div>
         </div>
 
         <button 
@@ -100,6 +109,7 @@ function LoginForm({ onLoginSuccess, onGoToSignup, onGoToForgotPassword }) {
       <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '14px' }}>
         계정이 없으신가요?{' '}
         <button 
+          type="button"
           onClick={onGoToSignup}
           style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', fontWeight: 'bold' }}
         >

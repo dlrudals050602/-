@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from './api/supabaseClient';
 import AuthView from './components/auth/AuthView';
+import ResetPasswordForm from './components/auth/ResetPasswordForm'; // 👈 1. 추가
 import MainView from './components/main/MainView';
 import CalendarView from './components/CalendarView';
 import LeaveForm from './components/LeaveForm';
@@ -14,6 +15,7 @@ function App() {
   // 1. 회원가입/로그인 및 프로필 상태 (내 코드)
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false); // 👈 2. 비밀번호 재설정 모드 상태 추가
 
   // 2. 출타/휴가 현황판 상태 (상대방 코드)
   const [leaves, setLeaves] = useState([]);
@@ -72,10 +74,10 @@ function App() {
 
   // 로그인되었을 때만 출타 데이터 로드
   useEffect(() => {
-    if (user) {
+    if (user && !isResettingPassword) {
       loadData();
     }
-  }, [user, loadData]);
+  }, [user, isResettingPassword, loadData]);
 
   // 출타 신청 핸들러 (상대방 코드)
   const handleApplyLeave = async (newLeave) => {
@@ -118,7 +120,22 @@ function App() {
     }
   };
 
-  // [화면 1] 로그인하지 않은 경우 -> 로그인/회원가입 화면
+  // 🔴 [최우선 화면] 비밀번호 재설정 모드인 경우
+  if (isResettingPassword) {
+    return (
+      <div style={{ maxWidth: '400px', margin: '50px auto', padding: '24px', border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: '#fff' }}>
+        <ResetPasswordForm 
+          onComplete={async () => {
+            await supabase.auth.signOut();
+            setIsResettingPassword(false);
+            window.location.href = '/';
+          }} 
+        />
+      </div>
+    );
+  }
+
+  // 🟡 [화면 1] 로그인하지 않은 경우 -> 로그인/회원가입 화면
   if (!user) {
     return (
       <div style={{ padding: '40px', fontFamily: 'sans-serif', maxWidth: '1100px', margin: '0 auto' }}>
@@ -134,7 +151,7 @@ function App() {
     );
   }
 
-  // [화면 2] 로그인된 경우 -> 내 정보 설정 + 출타 현황판 통합 화면
+  // 🟢 [화면 2] 로그인된 경우 -> 내 정보 설정 + 출타 현황판 통합 화면
   return (
     <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       {/* 1. 상단 내 정보 관리 및 로그아웃 헤더 (내 코드) */}
