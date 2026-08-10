@@ -1,187 +1,14 @@
-import {supabase} from '../supabaseClient';
+import { supabase } from '../supabaseClient';
+import { LEAVE_STATUS } from '../data/leave.js';
+import { cleanDateStr, getDatesInRange } from '../utils/dateUtils.js';
+import { getLeaveColor } from '../utils/colorUtils.js';
+import { isVacation, isPass, checkAvailability } from '../utils/leaveUtils.js';
 
-export const LEAVES_TYPES = {
-    VACATION: '휴가',
-    OUTING: '외출',
-    OVERNIGHT: '외박',
-};
-
-export const LEAVE_STATUS = {
-    ACTIVE: 'active',
-    PENDING: 'pending',
-};
-
-const MAX_VACATION_PER_DAY = 3;
-const MAX_TOTAL_LEAVE_PER_DAY = 5;
-
-const cleanDateStr = (str) => (str ? String(str).substring(0, 10) : '');
-
-const parseDate = (dateStr) => {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
-};
-
-const formatDate = (date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-};
-
-const getDatesInRange = (startDateStr, endDateStr) => {
-  const dates = [];
-  let curr = parseDate(startDateStr);
-  const end = parseDate(endDateStr);
-  while (curr <= end) {
-    dates.push(formatDate(curr));
-    curr.setDate(curr.getDate() + 1);
-  }
-  return dates;
-};
-
-const adjustVacationDays = async (userId, daysDelta) => {
-  if (!userId || !daysDelta) return;
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('vacation_days')
-    .eq('id', userId)
-    .maybeSingle();
-    
-  if (profile){
-    const currentDays = profile.vacation_days ?? 0;
-    const updatedDays = Math.max(0, currentDays + daysDelta);
-
-    await supabase
-      .from('profiles')
-      .update({ vacation_days: updatedDays })
-      .eq('id', userId);
-  }
-};
-//색 만들기
-export const getLeaveColor = (name = '', leaveType) => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  hash = Math.abs(hash);
-
-  const goldenRatio = 0.618033988749895;
-  const hueVariation = Math.floor(((hash * goldenRatio) % 1) * 70); // 70도 범위로 폭넓게 변형
-  const lightness = 72 + (hash % 16); // 72% ~ 88% 밝기 차이 부여
-
-  if (leaveType === LEAVES_TYPES.VACATION) {
-    // 붉은/주황/분홍 계열 (330도 ~ 40도)
-    const h = (330 + hueVariation) % 360;
-    return `hsl(${h}, 85%, ${lightness}%)`;
-  } else if (leaveType === LEAVES_TYPES.OUTING) {
-    // 하늘/파랑/보라 계열 (180도 ~ 250도)
-    const h = 180 + hueVariation;
-    return `hsl(${h}, 80%, ${lightness}%)`;
-  } else {
-    // 연두/초록/민트 계열 (80도 ~ 150도)
-    const h = 80 + hueVariation;
-    return `hsl(${h}, 75%, ${lightness}%)`;
-  }
-};
-
-//출타 룰 및 트랙 검증
-const isVacation = (type) => {
-  if (!type) return false;
-  return type === LEAVES_TYPES.VACATION || type.includes('휴가');
-};
-
-const isPass = (type) => {
-  if (!type) return false;
-  return type === LEAVES_TYPES.OUTING || type === LEAVES_TYPES.OVERNIGHT;
-};
-
-export const checkAvailability = (newLeave, existingLeaves = [], cachedHolidays = []) => {
-  const startDate = cleanDateStr(newLeave.startDate);
-  const endDate = cleanDateStr(newLeave.endDate);
-  const dates = getDatesInRange(startDate, endDate);
-
-  // 1. 외박 조건 검증 (1박 2일 여부만 확인)
-  if (newLeave.leaveType === LEAVES_TYPES.OVERNIGHT) {
-    if (dates.length !== 2) {
-      return { available: false, reason: '⚠️ 외박은 반드시 1박 2일(연속 2일) 기간으로만 신청 가능합니다.' };
-    }
-  }
-
-  // 2. 일자별 정원 체크
-  let requiresForceConfirm = false;
-  let overflowDates = [];
-
-  for (const d of dates) {
-    const activeOnDay = existingLeaves.filter((leave) => {
-      const lStatus = leave.status || LEAVE_STATUS.ACTIVE;
-      const lStart = cleanDateStr(leave.startDate);
-      const lEnd = cleanDateStr(leave.endDate);
-
-      return lStatus === LEAVE_STATUS.ACTIVE && d >= lStart && d <= lEnd;
-    });
-
-    const vacationsCount = activeOnDay.filter((l) => isVacation(l.leaveType)).length;
-    const totalCount = activeOnDay.length;
-
-    // A. 휴가 정원 체크 (3명)
-    if (isVacation(newLeave.leaveType)) {
-      if (vacationsCount + 1 > MAX_VACATION_PER_DAY) {
-        return { 
-          available: false, 
-          reason: `⚠️ ${d}에 휴가 정원(최대 ${MAX_VACATION_PER_DAY}명)이 초과되어 대기 상태로 등록됩니다.` 
-        };
-      }
-    }
-
-    // B. 총원 체크 (5명)
-    if (totalCount + 1 > MAX_TOTAL_LEAVE_PER_DAY) {
-      if (isVacation(newLeave.leaveType)) {
-        requiresForceConfirm = true;
-        overflowDates.push(d);
-      } else {
-        return { 
-          available: false, 
-          reason: `⚠️ ${d}에 총 출타 정원(최대 ${MAX_TOTAL_LEAVE_PER_DAY}명)이 초과되어 대기 상태로 등록됩니다.` 
-        };
-      }
-    }
-  }
-
-  if (requiresForceConfirm) {
-    return {
-      available: true,
-      requiresConfirm: true,
-      reason: `⚠️ ${overflowDates.join(', ')}일의 총 정원(5명)이 찼습니다. 그래도 휴가를 신청하시겠습니까?\n(가장 최근 신청된 외출/외박자가 대기 상태로 전환됩니다.)`
-    };
-  }
-
-  // 3. 빈 트랙 탐색 및 상태 확정
-  for (let track = 0; track < MAX_TOTAL_LEAVE_PER_DAY; track++) {
-    const isTrackFree = !dates.some((d) =>
-      existingLeaves.some((leave) => {
-        const lStatus = leave.status || LEAVE_STATUS.ACTIVE;
-        const lStart = cleanDateStr(leave.startDate);
-        const lEnd = cleanDateStr(leave.endDate);
-
-        return (
-          lStatus === LEAVE_STATUS.ACTIVE &&
-          leave.trackIndex === track &&
-          d >= lStart &&
-          d <= lEnd
-        );
-      })
-    );
-
-    if (isTrackFree) {
-      return { available: true, trackIndex: track };
-    }
-  }
-
-  return { available: false, reason: '⚠️ 선택하신 일정 중에 빈 트랙 자리가 없어 대기 상태로 등록됩니다.' };
-};
-
-// DB Snake_case -> JS CamelCase 매핑 (user_id 포함)
+export {groupLeavesByDate, checkAvailability} from '../utils/leaveUtils.js';
+export {getLeaveColor} from '../utils/colorUtils.js';
+/**
+ * DB 레코드를 CamelCase 객체로 매핑
+ */
 const mapLeaveFromDB = (item) => ({
   id: item.id,
   userId: item.user_id,
@@ -196,9 +23,36 @@ const mapLeaveFromDB = (item) => ({
   color: getLeaveColor(item.name, item.leave_type),
 });
 
-// ==========================================
-// 💾 DB CRUD 및 대기자 자동 승격
-// ==========================================
+/**
+ * 사용자 연가 일수 차감/환불
+ */
+const adjustVacationDays = async (userId, daysDelta) => {
+  if (!userId || !daysDelta) return;
+
+  const { data: profile, error: fetchError } = await supabase
+    .from('profiles')
+    .select('vacation_days')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+
+  if (profile) {
+    const currentDays = profile.vacation_days ?? 0;
+    const updatedDays = Math.max(0, currentDays + daysDelta);
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ vacation_days: updatedDays })
+      .eq('id', userId);
+
+    if (updateError) throw updateError;
+  }
+};
+
+/**
+ * 전체 출타 목록 조회
+ */
 export const fetchLeaves = async () => {
   const { data, error } = await supabase
     .from('leaves')
@@ -209,12 +63,20 @@ export const fetchLeaves = async () => {
   return data.map(mapLeaveFromDB);
 };
 
-export const applyLeave = async (newLeave, existingLeaves, cachedHolidays = [], userConfirmed = false, forcePending = false) => {
+/**
+ * 신규 출타 신청
+ */
+export const applyLeave = async (
+  newLeave, 
+  existingLeaves = [], 
+  options = { userConfirmed: false, forcePending: false }
+) => {
+  const { userConfirmed, forcePending } = options;
   const startDate = cleanDateStr(newLeave.startDate);
   const endDate = cleanDateStr(newLeave.endDate);
   const usedDays = getDatesInRange(startDate, endDate).length;
 
-  // 1. 강제 대기(Pending) 처리
+  // 1. 강제 대기(Pending) 신청 처리
   if (forcePending) {
     const { data, error } = await supabase
       .from('leaves')
@@ -235,7 +97,7 @@ export const applyLeave = async (newLeave, existingLeaves, cachedHolidays = [], 
   }
 
   // 2. 가용 정원 체크
-  const check = checkAvailability(newLeave, existingLeaves, cachedHolidays);
+  const check = checkAvailability(newLeave, existingLeaves);
 
   if (!check.available) {
     return { status: 'full', reason: check.reason };
@@ -247,7 +109,7 @@ export const applyLeave = async (newLeave, existingLeaves, cachedHolidays = [], 
 
   let assignedTrack = check.trackIndex;
 
-  // 3. 총원 5명 초과 시 외출/외박자를 Pending으로 전환 후 트랙 확보
+  // 3. 휴가로 인한 외출/외박자 대기(PENDING) 강등 처리
   if (check.requiresConfirm && userConfirmed) {
     const dates = getDatesInRange(startDate, endDate);
     
@@ -261,14 +123,16 @@ export const applyLeave = async (newLeave, existingLeaves, cachedHolidays = [], 
       const targetToDemote = activePasses[0];
       assignedTrack = targetToDemote.trackIndex;
 
-      await supabase
+      const { error: demoteError } = await supabase
         .from('leaves')
         .update({ status: LEAVE_STATUS.PENDING, track_index: -1 })
         .eq('id', targetToDemote.id);
+
+      if (demoteError) throw demoteError;
     }
   }
 
-  // 4. 출타 신청 저장
+  // 4. 출타 신청 레코드 생성
   const { data, error } = await supabase
     .from('leaves')
     .insert([{
@@ -285,7 +149,7 @@ export const applyLeave = async (newLeave, existingLeaves, cachedHolidays = [], 
 
   if (error) throw error;
 
-  // 5. '휴가' 승인 시 사용자의 profiles.vacation_days 차감 (-usedDays)
+  // 5. '휴가' 승인 시 연가 일수 차감
   if (isVacation(newLeave.leaveType) && newLeave.userId) {
     await adjustVacationDays(newLeave.userId, -usedDays);
   }
@@ -293,29 +157,10 @@ export const applyLeave = async (newLeave, existingLeaves, cachedHolidays = [], 
   return { status: LEAVE_STATUS.ACTIVE, data: mapLeaveFromDB(data[0]) };
 };
 
-export const deleteLeave = async (id, cachedHolidays = []) => {
-  // 1. 삭제 전 해당 출타 정보 조회 (휴가 환불 및 사용자 확인 목적)
-  const { data: targetLeave } = await supabase
-    .from('leaves')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle();
-
-  // 2. 출타 삭제 수행
-  const { error } = await supabase.from('leaves').delete().eq('id', id);
-  if (error) throw error;
-
-  // 3. 삭제된 건이 ACTIVE 상태인 '휴가'였다면 연가일수 환불 (+usedDays)
-  if (targetLeave && targetLeave.status === LEAVE_STATUS.ACTIVE && isVacation(targetLeave.leave_type) && targetLeave.user_id) {
-    const usedDays = getDatesInRange(cleanDateStr(targetLeave.start_date), cleanDateStr(targetLeave.end_date)).length;
-    await adjustVacationDays(targetLeave.user_id, usedDays);
-  }
-
-  // 4. 자리가 비었으므로 대기자 자동 승격 검사
-  await autoPromotePendingLeaves(cachedHolidays);
-};
-
-export const autoPromotePendingLeaves = async (cachedHolidays = []) => {
+/**
+ * 대기자 자동 승격 검사 및 승인
+ */
+export const autoPromotePendingLeaves = async () => {
   const { data, error } = await supabase
     .from('leaves')
     .select('*')
@@ -328,7 +173,7 @@ export const autoPromotePendingLeaves = async (cachedHolidays = []) => {
   const pendingLeaves = allLeaves.filter(l => l.status === LEAVE_STATUS.PENDING);
 
   for (const pending of pendingLeaves) {
-    const check = checkAvailability(pending, currentActive, cachedHolidays);
+    const check = checkAvailability(pending, currentActive);
     
     if (check.available && !check.requiresConfirm) {
       const { error: updateError } = await supabase
@@ -340,7 +185,6 @@ export const autoPromotePendingLeaves = async (cachedHolidays = []) => {
         .eq('id', pending.id);
 
       if (!updateError) {
-        // 승격된 신청이 '휴가'일 경우 user_id 기준 연가 차감
         if (isVacation(pending.leaveType) && pending.userId) {
           const usedDays = getDatesInRange(pending.startDate, pending.endDate).length;
           await adjustVacationDays(pending.userId, -usedDays);
@@ -356,17 +200,27 @@ export const autoPromotePendingLeaves = async (cachedHolidays = []) => {
   }
 };
 
-// ==========================================
-// 🗓️ 달력 렌더링용 날짜별 그룹화 유틸리티
-// ==========================================
-export const groupLeavesByDate = (leaves = []) => {
-  const map = {};
-  leaves.forEach((leave) => {
-    const dates = getDatesInRange(leave.startDate, leave.endDate);
-    dates.forEach((dateStr) => {
-      if (!map[dateStr]) map[dateStr] = [];
-      map[dateStr].push(leave);
-    });
-  });
-  return map;
+/**
+ * 출타 신청 삭제 및 환불/자동 승격
+ */
+export const deleteLeave = async (id) => {
+  const { data: targetLeave, error: fetchError } = await supabase
+    .from('leaves')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+
+  const { error: deleteError } = await supabase.from('leaves').delete().eq('id', id);
+  if (deleteError) throw deleteError;
+
+  // 삭제된 건이 승인 상태인 '휴가'였을 경우 연가 환불
+  if (targetLeave && targetLeave.status === LEAVE_STATUS.ACTIVE && isVacation(targetLeave.leave_type) && targetLeave.user_id) {
+    const usedDays = getDatesInRange(cleanDateStr(targetLeave.start_date), cleanDateStr(targetLeave.end_date)).length;
+    await adjustVacationDays(targetLeave.user_id, usedDays);
+  }
+
+  // 자리가 비었으므로 대기자 승격 시도
+  await autoPromotePendingLeaves();
 };
