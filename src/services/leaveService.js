@@ -1,4 +1,4 @@
-import { supabase } from '../supabaseClient';
+import { supabase } from '../api/supabaseClient';
 import { LEAVE_STATUS } from '../data/leave.js';
 import { cleanDateStr, getDatesInRange } from '../utils/dateUtils.js';
 import { getLeaveColor } from '../utils/colorUtils.js';
