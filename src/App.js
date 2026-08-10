@@ -7,7 +7,8 @@ import CalendarView from './components/CalendarView';
 import LeaveForm from './components/LeaveForm';
 import { fetchLeaves, applyLeave } from './services/leaveService';
 import { fetchHolidays } from './services/holidayService';
-import {calculateRankAndDays} from './utils/military';
+import {loadAndSyncUserProfile} from './services/profileService';
+
 
 function App() {
   // 1. 회원가입/로그인 및 프로필 상태 (내 코드)
@@ -20,53 +21,14 @@ function App() {
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
 
-  // 내 프로필 정보 불러오기
-  const fetchUserProfile = async (userId) => {
-    if (!userId) return null;
-    // Supabase에서 프로필 정보를 가져오는 로직
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (error|| !data) { return data; }
-
-    if (data.military_enlistment_date && data.military_discharge_date) {
-      const { rank: calculatedRank } = calculateRankAndDays(
-        data.military_enlistment_date,
-        data.military_discharge_date
-      );
-
-// 3. DB의 rank와 계산된 rank가 다르면 DB(profiles) 업데이트!
-    if (calculatedRank && data.rank !== calculatedRank) {
-      await supabase
-        .from('profiles')
-        .update({ rank: calculatedRank })
-        .eq('id', userId);
-
-      // 반환할 객체의 rank도 최신 계산값으로 교체
-      data.rank = calculatedRank;
-    }
-  }
-
-  return data;
-};
-
+ 
   // 로그인 상태 감지 (Supabase Auth)
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user?.email_confirmed_at) {
+    const {data: {subscription}} = supabase.auth.onAuthStateChange(async(event, session)=>{
+      if (session?.user?.email_confirmed_at){
         setUser(session.user);
-        const profile = await fetchUserProfile(session.user.id);
-        setUserProfile(profile);
-      }
-    });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user?.email_confirmed_at) {
-        setUser(session.user);
-        const profile = await fetchUserProfile(session.user.id);
+        const profile = await loadAndSyncUserProfile(session.user.id);
         setUserProfile(profile);
       } else {
         setUser(null);
@@ -78,15 +40,22 @@ function App() {
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setUserProfile(null);
-  };
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('로그아웃 중 오류:', error.message);
+    } finally {
+      // 성공/실패 여부와 관계없이 클라이언트 상태 초기화
+      setUser(null);
+      setUserProfile(null);
+    }
+  }
 
   // 3. 출타 데이터 로드 함수 (상대방 코드)
   const selectedYear = date.getFullYear();
 
   const loadData = useCallback(async () => {
+    setLoading(true);
     try {
       const [leaveData, holidayData] = await Promise.all([
         fetchLeaves(),
@@ -140,7 +109,7 @@ function App() {
         await loadData();
 
         if(user?.id) {
-          const updatedProfile = await fetchUserProfile(user.id);
+          const updatedProfile = await loadAndSyncUserProfile(user.id);
           setUserProfile(updatedProfile);
         }
       }
@@ -157,7 +126,7 @@ function App() {
         <AuthView 
           onLoginSuccess={async (loggedInUser) => {
             setUser(loggedInUser);
-            const profile = await fetchUserProfile(loggedInUser.id);
+            const profile = await loadAndSyncUserProfile(loggedInUser.id);
             setUserProfile(profile);
           }} 
         />
