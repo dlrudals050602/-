@@ -39,6 +39,25 @@ const getDatesInRange = (startDateStr, endDateStr) => {
   return dates;
 };
 
+const adjustVacationDays = async (userId, daysDelta) => {
+  if (!userId || !daysDelta) return;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('vacation_days')
+    .eq('id', userId)
+    .maybeSingle();
+    
+  if (profile){
+    const currentDays = profile.vacation_days ?? 0;
+    const updatedDays = Math.max(0, currentDays + daysDelta);
+
+    await supabase
+      .from('profiles')
+      .update({ vacation_days: updatedDays })
+      .eq('id', userId);
+  }
+};
 //색 만들기
 export const getLeaveColor = (name = '', leaveType) => {
   let hash = 0;
@@ -162,57 +181,10 @@ export const checkAvailability = (newLeave, existingLeaves = [], cachedHolidays 
   return { available: false, reason: '⚠️ 선택하신 일정 중에 빈 트랙 자리가 없어 대기 상태로 등록됩니다.' };
 };
 
-/**
- * 기존 출타 삭제/취소 시 대기자(PENDING)를 선착순으로 ACTIVE 전환해주는 함수
- */
-export const promotePendingLeaves = (leaves, cachedHolidays = []) => {
-  // 1. 현재 ACTIVE 상태인 출타 목록
-  const activeLeaves = leaves.filter(
-    (l) => (l.status || LEAVE_STATUS.ACTIVE) === LEAVE_STATUS.ACTIVE
-  );
-
-  // 2. PENDING 상태인 출타 목록 (신청 일시 선착순 정렬)
-  const pendingLeaves = leaves
-    .filter((l) => l.status === LEAVE_STATUS.PENDING)
-    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
-
-  let currentActive = [...activeLeaves];
-  const promotedIds = new Set();
-  const promotedList = [];
-
-  // 3. 대기 건들을 하나씩 검증하여 승인 처리
-  for (const pending of pendingLeaves) {
-    const check = checkAvailability(pending, currentActive, cachedHolidays);
-
-    // 정원 내 자리가 있고 트랙 할당이 가능하면 ACTIVE로 승인
-    if (check.available && check.trackIndex !== undefined) {
-      const activatedLeave = {
-        ...pending,
-        status: LEAVE_STATUS.ACTIVE,
-        trackIndex: check.trackIndex
-      };
-
-      currentActive.push(activatedLeave);
-      promotedIds.add(pending.id);
-      promotedList.push(activatedLeave);
-    }
-  }
-
-  // 4. 업데이트된 전체 leaves 배열 반환
-  const updatedLeaves = leaves.map((leave) => {
-    if (promotedIds.has(leave.id)) {
-      const promoted = promotedList.find((p) => p.id === leave.id);
-      return promoted;
-    }
-    return leave;
-  });
-
-  return { updatedLeaves, promotedList };
-};
-
-// DB Snake_case -> JS CamelCase 매핑
+// DB Snake_case -> JS CamelCase 매핑 (user_id 포함)
 const mapLeaveFromDB = (item) => ({
   id: item.id,
+  userId: item.user_id,
   name: item.name,
   rank: item.rank,
   leaveType: item.leave_type,
@@ -238,15 +210,21 @@ export const fetchLeaves = async () => {
 };
 
 export const applyLeave = async (newLeave, existingLeaves, cachedHolidays = [], userConfirmed = false, forcePending = false) => {
+  const startDate = cleanDateStr(newLeave.startDate);
+  const endDate = cleanDateStr(newLeave.endDate);
+  const usedDays = getDatesInRange(startDate, endDate).length;
+
+  // 1. 강제 대기(Pending) 처리
   if (forcePending) {
     const { data, error } = await supabase
       .from('leaves')
       .insert([{
+        user_id: newLeave.userId || null,
         name: newLeave.name,
         rank: newLeave.rank,
         leave_type: newLeave.leaveType,
-        start_date: cleanDateStr(newLeave.startDate),
-        end_date: cleanDateStr(newLeave.endDate),
+        start_date: startDate,
+        end_date: endDate,
         track_index: -1,
         status: LEAVE_STATUS.PENDING
       }])
@@ -256,6 +234,7 @@ export const applyLeave = async (newLeave, existingLeaves, cachedHolidays = [], 
     return { status: LEAVE_STATUS.PENDING, data: mapLeaveFromDB(data[0]) };
   }
 
+  // 2. 가용 정원 체크
   const check = checkAvailability(newLeave, existingLeaves, cachedHolidays);
 
   if (!check.available) {
@@ -268,9 +247,9 @@ export const applyLeave = async (newLeave, existingLeaves, cachedHolidays = [], 
 
   let assignedTrack = check.trackIndex;
 
-  // 총원 5명 초과 시 외출/외박자를 Pending으로 전환 후 트랙 확보
+  // 3. 총원 5명 초과 시 외출/외박자를 Pending으로 전환 후 트랙 확보
   if (check.requiresConfirm && userConfirmed) {
-    const dates = getDatesInRange(newLeave.startDate, newLeave.endDate);
+    const dates = getDatesInRange(startDate, endDate);
     
     const activePasses = existingLeaves
       .filter(l => (l.status || LEAVE_STATUS.ACTIVE) === LEAVE_STATUS.ACTIVE && 
@@ -289,27 +268,50 @@ export const applyLeave = async (newLeave, existingLeaves, cachedHolidays = [], 
     }
   }
 
+  // 4. 출타 신청 저장
   const { data, error } = await supabase
     .from('leaves')
     .insert([{
+      user_id: newLeave.userId || null,
       name: newLeave.name,
       rank: newLeave.rank,
       leave_type: newLeave.leaveType,
-      start_date: cleanDateStr(newLeave.startDate),
-      end_date: cleanDateStr(newLeave.endDate),
+      start_date: startDate,
+      end_date: endDate,
       track_index: assignedTrack !== undefined ? assignedTrack : 0,
       status: LEAVE_STATUS.ACTIVE
     }])
     .select();
 
   if (error) throw error;
+
+  // 5. '휴가' 승인 시 사용자의 profiles.vacation_days 차감 (-usedDays)
+  if (isVacation(newLeave.leaveType) && newLeave.userId) {
+    await adjustVacationDays(newLeave.userId, -usedDays);
+  }
+
   return { status: LEAVE_STATUS.ACTIVE, data: mapLeaveFromDB(data[0]) };
 };
 
 export const deleteLeave = async (id, cachedHolidays = []) => {
+  // 1. 삭제 전 해당 출타 정보 조회 (휴가 환불 및 사용자 확인 목적)
+  const { data: targetLeave } = await supabase
+    .from('leaves')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  // 2. 출타 삭제 수행
   const { error } = await supabase.from('leaves').delete().eq('id', id);
   if (error) throw error;
 
+  // 3. 삭제된 건이 ACTIVE 상태인 '휴가'였다면 연가일수 환불 (+usedDays)
+  if (targetLeave && targetLeave.status === LEAVE_STATUS.ACTIVE && isVacation(targetLeave.leave_type) && targetLeave.user_id) {
+    const usedDays = getDatesInRange(cleanDateStr(targetLeave.start_date), cleanDateStr(targetLeave.end_date)).length;
+    await adjustVacationDays(targetLeave.user_id, usedDays);
+  }
+
+  // 4. 자리가 비었으므로 대기자 자동 승격 검사
   await autoPromotePendingLeaves(cachedHolidays);
 };
 
@@ -338,6 +340,12 @@ export const autoPromotePendingLeaves = async (cachedHolidays = []) => {
         .eq('id', pending.id);
 
       if (!updateError) {
+        // 승격된 신청이 '휴가'일 경우 user_id 기준 연가 차감
+        if (isVacation(pending.leaveType) && pending.userId) {
+          const usedDays = getDatesInRange(pending.startDate, pending.endDate).length;
+          await adjustVacationDays(pending.userId, -usedDays);
+        }
+
         currentActive.push({
           ...pending,
           status: LEAVE_STATUS.ACTIVE,

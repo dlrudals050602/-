@@ -1,18 +1,10 @@
-// ProfileCard.jsx
-
 import React from 'react';
 import RankInsignia from '../RankInsignia';
 import { calculateRankAndDays } from '../../utils/military';
 
-function ProfileCard({ 
-  userProfile, 
-  isProfileComplete, 
-  onOpenCalendar,   // 👈 부모(MainView)로부터 넘겨받는 토글 함수
-  isCalendarOpen,   // 👈 캘린더 열림/닫힘 상태
-  onEditProfile, 
-  onSignOut 
-}) {
-  const { rank, daysServed, daysLeft, percentage } = isProfileComplete 
+function ProfileCard({ userProfile, isProfileComplete, onEditProfile, onSignOut }) {
+
+  const { rank, daysServed, daysLeft, percentage } = isProfileComplete && userProfile
     ? calculateRankAndDays(userProfile.military_enlistment_date, userProfile.military_discharge_date)
     : { rank: '', daysServed: 0, daysLeft: 0, percentage: 0 };
 
@@ -69,8 +61,6 @@ function ProfileCard({
         </div>
       )}
 
-
-
       {/* 2. 내 정보 설정/수정 버튼 */}
       <button 
         onClick={onEditProfile}
@@ -80,6 +70,7 @@ function ProfileCard({
       </button>
 
       {/* 3. 로그아웃 버튼 */}
+
       <button 
         onClick={onSignOut}
         style={{ width: '100%', padding: '10px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
