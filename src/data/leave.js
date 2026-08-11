@@ -7,6 +7,7 @@ export const LEAVES_TYPES = {
 export const LEAVE_STATUS = {
   ACTIVE: 'active',
   PENDING: 'pending',
+  WISH: 'wish'
 };
 
 export const MAX_VACATION_PER_DAY = 3;

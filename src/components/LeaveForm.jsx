@@ -50,11 +50,13 @@ const addDaysToDateString = (dateString, daysToAdd) => {
   return `${y}-${m}-${d}`;
 };
 
-function LeaveForm({ onApply, holidays = [], leaves = [], userProfile }) {
+function LeaveForm({ onApply, onSaveWish, holidays = [], leaves = [], userProfile }) {
   const [formData, setFormData] = useState(INITIAL_STATE);
 
   const [showStartCalendar, setShowStartCalendar] = useState(false);
   const [showEndCalendar, setShowEndCalendar] = useState(false);
+
+  // const myLeaves = leaves.filter((l)=>l.userId===userProfile?.id);
 
   useEffect(() => {
     if (userProfile) {
@@ -145,6 +147,29 @@ function LeaveForm({ onApply, holidays = [], leaves = [], userProfile }) {
     setFormData(INITIAL_STATE);
   };  
 
+  const handleWishClick = () => {
+    const {startDate, endDate} = formData;
+    if(!startDate || !endDate) {
+      alert('날짜를 먼저 선택해주세요.');
+      return;
+    }
+    if(startDate > endDate){
+      alert('종료일이 시작일보다 빠릅니다.');
+      return;
+    }
+
+    const userName = userProfile?.full_name || userProfile?.username || '미정';
+    const userRank = userProfile?.rank || '미정';
+
+    onSaveWish({
+      ...formData,
+      name: userName,
+      rank: userRank,
+      userId: userProfile?.id
+    });
+    setFormData(INITIAL_STATE);
+  };
+
   const isSingleDateLeave = formData.leaveType === LEAVE_TYPE.GO_OUT || formData.leaveType === LEAVE_TYPE.STAY_OUT;
 
   return (
@@ -164,13 +189,8 @@ function LeaveForm({ onApply, holidays = [], leaves = [], userProfile }) {
           alignItems: 'center',
           border: '1px solid #e9ecef'
         }}>
-          <div>
-            신청자: <strong>{userProfile.rank || '이병'} {userProfile.full_name || userProfile.username}</strong>
-          </div>
-          <div>
-            잔여 휴가: <strong style={{ color: '#1a73e8' }}>{userProfile.vacation_days ?? 0}일</strong>
-          </div>
-        </div>
+          <div>계급/이름: <strong>{userProfile.rank || '미정'} {userProfile.full_name || userProfile.username}</strong></div>
+          <div>잔여 휴가: <strong style={{ color: '#1a73e8' }}>{userProfile.vacation_days ?? 0}일</strong></div>        </div>
       )}
 
       <form onSubmit={handleSubmit} className="leave-form">
@@ -184,28 +204,27 @@ function LeaveForm({ onApply, holidays = [], leaves = [], userProfile }) {
         </div>
 
         <div className="form-group position-relative">
-          <label htmlFor="startDate">출타 시작일</label>
-          <input 
+          <label htmlFor="startDate">시작일</label>
+          <input
             id="startDate"
-            type="text" 
-            value={formData.startDate} 
-            placeholder="클릭하여 날짜 선택"
+            type="text"
+            value={formData.startDate}
+            placeholder="날짜 선택"
             onClick={() => {
               setShowStartCalendar(true);
               setShowEndCalendar(false);
             }}
-            readOnly 
+            readOnly
             required
           />
-          
           {showStartCalendar && (
             <div className="calendar-popup-wrapper">
-              <MiniCalendar 
+              <MiniCalendar
                 holidays={holidays}
                 leaves={leaves}
                 date={formData.startDate ? parseDate(formData.startDate) : new Date()}
                 onDateChange={(dateObj) => {
-                  setFormData(prev => ({ ...prev, startDate: formatDateStr(dateObj) }));
+                  setFormData((prev) => ({ ...prev, startDate: formatDateStr(dateObj) }));
                   setShowStartCalendar(false);
                 }}
               />
@@ -216,12 +235,12 @@ function LeaveForm({ onApply, holidays = [], leaves = [], userProfile }) {
 
         {!isSingleDateLeave ? (
           <div className="form-group position-relative">
-            <label htmlFor="endDate">출타 종료일</label>
-            <input 
+            <label htmlFor="endDate">종료일</label>
+            <input
               id="endDate"
-              type="text" 
-              value={formData.endDate} 
-              placeholder="클릭하여 날짜 선택"
+              type="text"
+              value={formData.endDate}
+              placeholder="날짜 선택"
               onClick={() => {
                 setShowEndCalendar(true);
                 setShowStartCalendar(false);
@@ -229,15 +248,14 @@ function LeaveForm({ onApply, holidays = [], leaves = [], userProfile }) {
               readOnly
               required
             />
-            
             {showEndCalendar && (
               <div className="calendar-popup-wrapper">
-                <MiniCalendar 
+                <MiniCalendar
                   holidays={holidays}
                   leaves={leaves}
                   date={formData.endDate ? parseDate(formData.endDate) : new Date()}
                   onDateChange={(dateObj) => {
-                    setFormData(prev => ({ ...prev, endDate: formatDateStr(dateObj) }));
+                    setFormData((prev) => ({ ...prev, endDate: formatDateStr(dateObj) }));
                     setShowEndCalendar(false);
                   }}
                 />
@@ -248,13 +266,39 @@ function LeaveForm({ onApply, holidays = [], leaves = [], userProfile }) {
         ) : (
           formData.startDate && (
             <div className="automatic-date-tip">
-              ℹ️ {formData.leaveType === LEAVE_TYPE.GO_OUT ? '외출 당일 복귀' : '외박 1박 2일'} 자동 적용: 
-              <strong style={{ marginLeft: '5px', color: '#1a73e8' }}>{formData.endDate} 복귀</strong>
+              종료일 자동설정:
+              <strong style={{ marginLeft: '5px', color: '#1a73e8' }}>{formData.endDate}</strong>
             </div>
           )
         )}
 
-        <button type="submit" className="submit-btn">신청하기</button>
+        {/* 2원화 버튼[cite: 1] */}
+        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+          <button
+            type="button"
+            onClick={handleWishClick}
+            style={{
+              flex: 1,
+              padding: '12px',
+              backgroundColor: '#f1f5f9',
+              color: '#334155',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              cursor: 'pointer'
+            }}
+          >
+            ⭐️ 위시 저장
+          </button>
+          <button
+            type="submit"
+            className="submit-btn"
+            style={{ flex: 1.5 }}
+          >
+            🚀 정식 신청하기
+          </button>
+        </div>
       </form>
     </div>
   );

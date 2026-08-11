@@ -36,7 +36,7 @@ function ForgotPasswordForm({ onBackToLogin }) {
 
     // 2. 비밀번호 재설정 이메일 발송
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(targetEmail, {
-      redirectTo: window.location.origin, // 이메일 링크 클릭 시 이동할 URL
+      redirectTo: `${window.location.origin}/reset-password`, // 이메일 링크 클릭 시 이동할 URL
     });
 
     setLoading(false);

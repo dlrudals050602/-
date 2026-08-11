@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { fetchLeaves, applyLeave } from '../services/leaveService';
+import { fetchLeaves, applyLeave, deleteLeave } from '../services/leaveService';
 import { fetchHolidays } from '../services/holidayService';
 import { useAuth } from './AuthContext';
 
@@ -70,8 +70,20 @@ export const DataProvider = ({ children }) => {
     }
   };
 
+  const handleDeleteLeave = async (leaveId) => {
+    if(!window.confirm('해당 출타 신청을 삭제하시겠습니까?')) return;
+    try{
+      await deleteLeave(leaveId);
+      alert('출타가 삭제되었습니다.');
+      await loadData();
+      await refreshProfile();
+    } catch (error) {
+      alert('삭제 중 오류가 발생했습니다: ' + error.message);
+    }
+  };
+
   return (
-    <DataContext.Provider value={{ leaves, holidays, date, setDate, loading, loadData, handleApplyLeave }}>
+    <DataContext.Provider value={{ leaves, holidays, date, setDate, loading, loadData, handleApplyLeave, handleDeleteLeave }}>
       {children}
     </DataContext.Provider>
   );

@@ -224,3 +224,38 @@ export const deleteLeave = async (id) => {
   // 자리가 비었으므로 대기자 승격 시도
   await autoPromotePendingLeaves();
 };
+
+//위시리스트 저장
+export const saveWishLeave = async (newLeave) => {
+  const startDate = cleanDateStr(newLeave.startDate);
+  const endDate = cleanDateStr(newLeave.endDate);
+
+  const { data, error } = await supabase
+    .from('leaves')
+    .insert([{
+      user_id: newLeave.userId || null,
+      name: newLeave.name,
+      rank: newLeave.rank,
+      leave_type: newLeave.leaveType,
+      start_date: startDate,
+      end_date: endDate,
+      track_index: -1,
+      status: LEAVE_STATUS.WISH
+    }])
+    .select();
+
+  if (error) throw error;
+  return mapLeaveFromDB(data[0]);
+};
+
+// 위시 -> 정식 출타 전환 (기존 위시 삭제 후 정원/휴가일수 검증 적용하여 정식 신청)
+export const promoteWishToActive = async (wishLeave, existingLeaves) => {
+  const { error: deleteError } = await supabase
+    .from('leaves')
+    .delete()
+    .eq('id', wishLeave.id);
+    
+  if (deleteError) throw deleteError;
+
+  return await applyLeave(wishLeave, existingLeaves);
+};
