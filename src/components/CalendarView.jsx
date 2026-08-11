@@ -1,5 +1,5 @@
 // src/components/CalendarView.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './CalendarView.css';
@@ -14,10 +14,6 @@ const formatDateStr = (targetDate) => {
 };
 
 function CalendarView({ leaves = [], holidays = [], date, onDateChange }) {
-  // 1. 시작 날짜 / 종료 날짜 state 및 DB 데이터 state
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [dbData, setDbData] = useState({});
 
   // 상대방이 추가한 휴가 데이터 그룹화
   const leavesByDateMap = useMemo(() => {
@@ -45,39 +41,6 @@ function CalendarView({ leaves = [], holidays = [], date, onDateChange }) {
     return null;
   };
 
-  // 2. 시작일~종료일을 DB로 전송하는 함수 (내가 작성한 기능)
-  const handleDbSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!startDate || !endDate) {
-      return alert('시작 날짜와 종료 날짜를 모두 선택해주세요!');
-    }
-
-    if (startDate > endDate) {
-      return alert('시작 날짜는 종료 날짜보다 이전이어야 합니다.');
-    }
-
-    try {
-      const response = await fetch('/api/calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startDate: startDate,
-          endDate: endDate,
-        }),
-      });
-
-      const result = await response.json();
-      setDbData(result);
-
-      const [year, month, day] = startDate.split('-');
-      onDateChange(new Date(Number(year), Number(month) - 1, Number(day)));
-
-      alert('기간 데이터 전송 및 달력 업데이트 완료!');
-    } catch (error) {
-      console.error('DB 통신 중 오류 발생:', error);
-    }
-  };
 
   // 3. 달력의 각 날짜(tile)마다 휴가/공휴일 렌더링 (상대방이 작성한 상세 로직 적용)
   const renderTileContent = ({ date: tileDate, view }) => {

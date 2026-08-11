@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import CalendarView from '../CalendarView';
 import ProfileCard from './ProfileCard';
 import ProfileSetupForm from '../auth/ProfileSetupForm';
 
 function MainView({ user, userProfile, setUserProfile, onSignOut }) {
   const [showCalendar, setShowCalendar] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [date, setDate] = useState(new Date());
 
   const isProfileComplete = 
     userProfile && 
