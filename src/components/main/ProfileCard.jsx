@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import RankInsignia from '../RankInsignia';
 import { calculateRankAndDays } from '../../utils/military';
+import AppSetupForm from '../auth/AppSetupForm.jsx'; // 별도 분리한 설정 컴포넌트 불러오기
 
 function ProfileCard({ userProfile, isProfileComplete, onEditProfile, onSignOut }) {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const { rank, daysServed, daysLeft, percentage } = isProfileComplete && userProfile
     ? calculateRankAndDays(userProfile.military_enlistment_date, userProfile.military_discharge_date)
     : { rank: '', daysServed: 0, daysLeft: 0, percentage: 0 };
+
+  const displayName = userProfile?.full_name || userProfile?.name || userProfile?.username || '';
 
   return (
     <div style={{ textAlign: 'center' }}>
@@ -21,7 +25,14 @@ function ProfileCard({ userProfile, isProfileComplete, onEditProfile, onSignOut 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid #dcfce7', paddingBottom: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {['이병', '일병', '상병', '병장'].includes(rank) && <RankInsignia rank={rank} />}
-              <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#15803d' }}>{rank}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#15803d' }}>
+                  {rank}
+                </span>
+                <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#1f2937' }}>
+                  {displayName}
+                </span>
+              </div>
             </div>
             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#2563eb', backgroundColor: '#eff6ff', padding: '4px 8px', borderRadius: '6px' }}>
               복무 {daysServed}일차
@@ -61,7 +72,7 @@ function ProfileCard({ userProfile, isProfileComplete, onEditProfile, onSignOut 
         </div>
       )}
 
-      {/* 2. 내 정보 설정/수정 버튼 */}
+      {/* 1. 내 정보 설정/수정 버튼 */}
       <button 
         onClick={onEditProfile}
         style={{ width: '100%', padding: '10px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '10px' }}
@@ -69,14 +80,24 @@ function ProfileCard({ userProfile, isProfileComplete, onEditProfile, onSignOut 
         {isProfileComplete ? '내 정보 수정하기' : '내 정보 설정하기'}
       </button>
 
-      {/* 3. 로그아웃 버튼 */}
+      {/* 2. 앱 설정하기 버튼 */}
+      <button 
+        onClick={() => setIsSettingsOpen(true)}
+        style={{ width: '100%', padding: '10px', backgroundColor: '#4b5563', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '10px' }}
+      >
+        ⚙️ 앱 설정하기
+      </button>
 
+      {/* 3. 로그아웃 버튼 */}
       <button 
         onClick={onSignOut}
         style={{ width: '100%', padding: '10px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
       >
         로그아웃
       </button>
+
+      {/* 분리된 앱 설정 모달 */}
+      {isSettingsOpen && <AppSetupForm onClose={() => setIsSettingsOpen(false)} />}
     </div>
   );
 }
