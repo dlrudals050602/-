@@ -17,12 +17,10 @@ function ForgotPasswordForm({ onBackToLogin }) {
     const targetEmail = email.trim();
 
     // 1. profiles 테이블에서 아이디와 이메일이 동시에 일치하는 유저 조회
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('username', targetUsername)
-      .eq('email', targetEmail)
-      .maybeSingle();
+    const { data: isValid, error: profileError } = await supabase.rpc('verify_username_and_email', {
+      p_username: targetUsername,
+      p_email: targetEmail,
+    });
 
     if (profileError) {
       setMessage(`조회 중 오류가 발생했습니다: ${profileError.message}`);
@@ -30,8 +28,7 @@ function ForgotPasswordForm({ onBackToLogin }) {
       return;
     }
 
-    // 아이디와 이메일 조합이 일치하지 않는 경우
-    if (!profile) {
+    if (!isValid) {
       setMessage('입력하신 아이디와 이메일 정보가 일치하지 않습니다.');
       setLoading(false);
       return;
@@ -39,7 +36,7 @@ function ForgotPasswordForm({ onBackToLogin }) {
 
     // 2. 비밀번호 재설정 이메일 발송
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(targetEmail, {
-      redirectTo: `${window.location.origin}/reset-password`, // 이메일 링크 클릭 시 이동할 URL
+      redirectTo: window.location.origin, // 이메일 링크 클릭 시 이동할 URL
     });
 
     setLoading(false);

@@ -6,14 +6,15 @@ function VerifyOtpForm({ pendingEmail, onSuccess, onBackToLogin }) {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+
   // 미인증 계정 삭제 함수
-  const deletePendingAccount = async () => {
-    if (pendingEmail) {
-      await supabase.rpc('delete_unconfirmed_user_by_email', {
-        target_email: pendingEmail,
-      });
-    }
-  };
+  // const deletePendingAccount = async () => {
+  //   if (pendingEmail) {
+  //     await supabase.rpc('delete_unconfirmed_user_by_email', {
+  //       target_email: pendingEmail,
+  //     });
+  //   }
+  // };
 
   // 인증 확인 처리
   const handleVerifyOtp = async (e) => {
@@ -53,9 +54,10 @@ function VerifyOtpForm({ pendingEmail, onSuccess, onBackToLogin }) {
 
   // 사용자가 취소하고 로그인 화면으로 돌아갈 때만 삭제
   const handleCancel = async () => {
-    setIsLoading(true);
-    await deletePendingAccount();
-    setIsLoading(false);
+    // setIsLoading(true);
+    // await deletePendingAccount();
+    // setIsLoading(false);
+    //DB 단에서 1시간마다 미인증 로그인 계정 삭제
     onBackToLogin();
   };
 

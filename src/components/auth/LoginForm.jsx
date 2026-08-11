@@ -1,54 +1,62 @@
 import React, { useState } from 'react';
 import { supabase } from '../../api/supabaseClient';
 
-function LoginForm({ onLoginSuccess, onGoToSignup, onGoToForgotPassword }) {
+function LoginForm({ onLoginSuccess, onRequireVerify, onGoToSignup, onGoToForgotPassword }) {
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // isLoading 및 setIsLoading 선언
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setMessage('');
+    setIsLoading(true);
 
     const targetId = loginId.trim();
 
-    // 1. 이메일 인증이 완료된 계정만 모여있는 profiles 테이블에서 조회
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('username', targetId)
-      .maybeSingle();
+    // RPC 함수를 사용하여 아이디로 이메일 조회
+    const { data: userEmail, error: profileError } = await supabase.rpc('get_email_by_username', {
+      p_username: targetId,
+    });
 
     if (profileError) {
       setMessage(`로그인 오류가 발생했습니다: ${profileError.message}`);
+      setIsLoading(false);
       return;
     }
 
-    // 미인증 유저는 profiles에 존재하지 않으므로 바로 "없는 계정" 처리
-    if (!profile || !profile.email) {
-      setMessage(`로그인 실패: 존재하지 않는 계정입니다.`);
+    // profile -> userEmail 참조로 수정
+    if (!userEmail) {
+      setMessage('로그인 실패: 존재하지 않는 계정입니다.');
+      setIsLoading(false);
       return;
     }
 
-    // 2. 비밀번호로 로그인 시도
+    // 비밀번호로 로그인 시도 (userEmail 사용)
     const { data: authData, error: loginError } = await supabase.auth.signInWithPassword({
-      email: profile.email,
+      email: userEmail,
       password: password,
     });
 
+    setIsLoading(false);
+
     if (loginError) {
       if (loginError.message.includes('Email not confirmed')) {
-        setMessage('로그인 실패: 존재하지 않는 계정입니다.');
+        if (onRequireVerify) onRequireVerify(userEmail);
         return;
       }
       setMessage('로그인 실패: 비밀번호가 올바르지 않습니다.');
       return;
     }
 
-    // 3. 최종 인증 확인
+    // 최종 인증 확인
     if (!authData?.user?.email_confirmed_at) {
       await supabase.auth.signOut();
-      setMessage('로그인 실패: 존재하지 않는 계정입니다.');
+      if (onRequireVerify) {
+        onRequireVerify(userEmail);
+      } else {
+        setMessage('로그인 실패: 존재하지 않거나 미인증된 계정입니다.');
+      }
     } else {
       onLoginSuccess(authData.user);
     }
@@ -70,7 +78,6 @@ function LoginForm({ onLoginSuccess, onGoToSignup, onGoToForgotPassword }) {
           />
         </div>
 
-        {/* 비밀번호 입력창 및 하단 중앙 버튼 */}
         <div style={{ marginBottom: '20px' }}>
           <label style={{ fontSize: '14px', fontWeight: '600' }}>비밀번호</label>
           <input
@@ -94,9 +101,10 @@ function LoginForm({ onLoginSuccess, onGoToSignup, onGoToForgotPassword }) {
 
         <button 
           type="submit" 
-          style={{ width: '100%', padding: '12px', backgroundColor: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px' }}
+          disabled={isLoading}
+          style={{ width: '100%', padding: '12px', backgroundColor: isLoading ? '#9ca3af' : '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '15px' }}
         >
-          로그인
+          {isLoading ? '로그인 중...' : '로그인'}
         </button>
       </form>
 

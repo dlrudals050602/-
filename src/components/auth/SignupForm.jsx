@@ -27,18 +27,16 @@ function SignupForm({ onSignUpSuccess, onBackToLogin }) {
       return;
     }
 
-    const { data: existingProfile, error } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('username', trimmedUsername)
-      .maybeSingle();
+    const { data: isExists, error } = await supabase.rpc('check_username_exists', {
+      p_username: trimmedUsername,
+    });
 
     if (error) {
       setUsernameMessage('중복 확인 중 오류가 발생했습니다.');
       return;
     }
 
-    if (existingProfile) {
+    if (isExists) {
       setUsernameMessage('❌ 이미 사용 중인 아이디입니다.');
       setIsUsernameChecked(false);
     } else {
@@ -64,7 +62,7 @@ function SignupForm({ onSignUpSuccess, onBackToLogin }) {
     setIsLoading(true);
 
     try {
-      const { data, error: signupError } = await supabase.auth.signUp({
+      const { error: signupError } = await supabase.auth.signUp({
         email: email.trim(),
         password: password,
         options: {

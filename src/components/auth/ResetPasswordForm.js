@@ -40,8 +40,10 @@ function ResetPasswordForm({ onComplete }) {
       setMessage('비밀번호가 성공적으로 변경되었습니다!');
       
       // 1.5초 후 완료 콜백 실행 (App.js에서 지정한 로그인/메인 화면 이동 로직 동작)
-      setTimeout(() => {
-        if (onComplete) onComplete();
+      setTimeout(async() => {
+        // 유저 정보 가져와서 로그인 처리
+        const {data: {user} } = await supabase.auth.getUser();
+        if (onComplete) onComplete(user);
       }, 1500);
     }
   };
