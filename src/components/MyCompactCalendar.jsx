@@ -3,7 +3,8 @@ import React, { useMemo } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './MyCompactCalendar.css';
-import { LEAVES_TYPES } from '../data/leave';
+// import { LEAVES_TYPES } from '../data/leave';
+import {getLeaveColor} from '../utils/colorUtils';
 
 const formatDateStr = (targetDate) => {
   const y = targetDate.getFullYear();
@@ -62,17 +63,8 @@ function MyCompactCalendar({ leaves = [], userId, holidays = [] }) {
     const activeLeave = myDayLeaves.find((l) => l.status === 'active' || l.status === 'pending');
     const wishLeave = myDayLeaves.find((l) => l.status === 'wish');
 
-    if (activeLeave) {
-      const type = activeLeave.leaveType;
-      if (type === LEAVES_TYPES.VACATION || type?.includes('휴가')) return 'compact-tile my-vacation';
-      if (type === LEAVES_TYPES.OUTING || type?.includes('외출')) return 'compact-tile my-outing';
-      if (type === LEAVES_TYPES.OVERNIGHT || type?.includes('외박')) return 'compact-tile my-overnight';
-      return 'compact-tile my-vacation';
-    }
-
-    if (wishLeave) {
-      return 'compact-tile my-wish';
-    }
+    if (activeLeave) return 'compact-tile my-active-tile';
+    if (wishLeave) return 'compact-tile my-wish';
 
     const dayOfWeek = date.getDay();
     const isHoliday = holidays.some((h) => h.date === dateStr);
@@ -87,12 +79,32 @@ function MyCompactCalendar({ leaves = [], userId, holidays = [] }) {
     if (view !== 'month') return null;
     const dateStr = formatDateStr(date);
     const totalActiveCount = dailyTotalCountMap[dateStr] || 0;
+    const myDayLeaves = myLeavesMap[dateStr] || [];
+    
+    const activeLeave = myDayLeaves.find((l) => l.status === 'active' || l.status === 'pending');
+    const wishLeave = myDayLeaves.find((l) => l.status === 'wish');
+
+    let tileStyle = {};
+
+    if (activeLeave) {
+      // 확정/대기 출타: 해당 출타 종목 색상으로 바탕 채우기
+      const bg = getLeaveColor(activeLeave.name, activeLeave.leaveType);
+      tileStyle = { backgroundColor: bg, borderRadius: '6px', color: '#ffffff' };
+    } else if (wishLeave) {
+      // 위시 출타: 해당 출타 종목 색상의 점선 테두리
+      const wishColor = getLeaveColor(wishLeave.name, wishLeave.leaveType);
+      tileStyle = {
+        border: `2px dashed ${wishColor}`,
+        backgroundColor: '#ffffff',
+        borderRadius: '6px',
+        boxSizing: 'border-box',
+      };
+    }
 
     return (
-      <div className="compact-tile-content">
+      <div className="compact-tile-content" style={tileStyle}>
         <div className={`compact-slot-badge ${totalActiveCount >= 5 ? 'full' : totalActiveCount > 0 ? 'some' : 'empty'}`}>
-          {totalActiveCount}/5
-        </div>
+          {wishLeave && !activeLeave ? `⭐️ ${totalActiveCount}/5` : `${totalActiveCount}/5`}        </div>
       </div>
     );
   };
@@ -109,12 +121,14 @@ function MyCompactCalendar({ leaves = [], userId, holidays = [] }) {
       />
 
       {/* 하단 범례 */}
-      <div className="compact-legend">
-        <span className="legend-item"><span className="dot vacation"></span> 휴가</span>
-        <span className="legend-item"><span className="dot outing"></span> 외출</span>
-        <span className="legend-item"><span className="dot overnight"></span> 외박</span>
-        <span className="legend-item"><span className="dot wish"></span> ⭐️ 위시</span>
-      </div>
+    <div className="compact-legend">
+      <span className="legend-item"><span className="dot vacation"></span> 휴가</span>
+      <span className="legend-item"><span className="dot outing"></span> 외출</span>
+      <span className="legend-item"><span className="dot overnight"></span> 외박</span>
+      <span className="legend-item" style={{ fontSize: '10px', color: '#64748b' }}>
+        (점선 테두리 ⭐️ = 위시)
+      </span>
+    </div>
     </div>
   );
 }

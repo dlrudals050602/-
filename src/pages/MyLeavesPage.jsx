@@ -4,6 +4,7 @@ import MyCompactCalendar from '../components/MyCompactCalendar';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import {saveWishLeave, promoteWishToActive} from '../services/leaveService';
+import { getLeaveColor } from '../utils/colorUtils';
 
 function MyLeavesPage() {
   const { holidays, leaves, handleApplyLeave, handleDeleteLeave, loadData } = useData();
@@ -22,6 +23,8 @@ function MyLeavesPage() {
   const pastLeaves = myLeaves
     .filter((l) => l.endDate < todayStr)
     .sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+
+  const currentUserName = userProfile?.full_name || userProfile?.username || '';
 
   // 위시 저장 처리
   const handleSaveWish = async (wishData) => {
@@ -113,76 +116,50 @@ return (
           </div>
         </div>
 
-        {viewMode === 'list' ? (
+{viewMode === 'list' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* 예정된 정식 출타 */}
-            {upcomingLeaves.map((leave) => (
-              <div
-                key={leave.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: '#f8fafc'
-                }}
-              >
-                <div>
-                  <strong style={{ fontSize: '13px', color: '#0f172a' }}>[{leave.leaveType}]</strong>{' '}
-                  <span style={{ fontSize: '13px' }}>{leave.startDate} ~ {leave.endDate}</span>
-                  {leave.status === 'pending' && (
-                    <span style={{ color: '#d97706', fontSize: '11px', fontWeight: 'bold', marginLeft: '6px' }}>
-                      (대기 중)
-                    </span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteLeave(leave.id)}
+            {upcomingLeaves.map((leave) => {
+              const leaveBg = getLeaveColor(leave.name || currentUserName, leave.leaveType);
+              return (
+                <div
+                  key={leave.id}
                   style={{
-                    border: 'none',
-                    backgroundColor: '#fee2e2',
-                    color: '#dc2626',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer'
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#f8fafc'
                   }}
                 >
-                  삭제 ✕
-                </button>
-              </div>
-            ))}
-
-            {/* 위시 출타 */}
-            {wishLeaves.map((leave) => (
-              <div
-                key={leave.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  border: '1px dashed #3b82f6',
-                  backgroundColor: '#eff6ff'
-                }}
-              >
-                <div>
-                  <strong style={{ fontSize: '13px', color: '#1d4ed8' }}>[⭐️ 위시]</strong>{' '}
-                  <span style={{ fontSize: '13px' }}>{leave.startDate} ~ {leave.endDate}</span>
-                </div>
-                <div style={{ display: 'flex', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span 
+                      style={{
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        backgroundColor: leaveBg,
+                        display: 'inline-block'
+                      }}
+                    />
+                    <div>
+                      <strong style={{ fontSize: '13px', color: '#0f172a' }}>[{leave.leaveType}]</strong>{' '}
+                      <span style={{ fontSize: '13px' }}>{leave.startDate} ~ {leave.endDate}</span>
+                      {leave.status === 'pending' && (
+                        <span style={{ color: '#d97706', fontSize: '11px', fontWeight: 'bold', marginLeft: '6px' }}>
+                          (대기 중)
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => handlePromoteWish(leave)}
+                    onClick={() => handleDeleteLeave(leave.id)}
                     style={{
                       border: 'none',
-                      backgroundColor: '#2563eb',
-                      color: '#ffffff',
+                      backgroundColor: '#fee2e2',
+                      color: '#dc2626',
                       padding: '4px 8px',
                       borderRadius: '4px',
                       fontSize: '11px',
@@ -190,26 +167,71 @@ return (
                       cursor: 'pointer'
                     }}
                   >
-                    신청 🚀
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteLeave(leave.id)}
-                    style={{
-                      border: 'none',
-                      backgroundColor: '#e2e8f0',
-                      color: '#64748b',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ✕
+                    삭제 ✕
                   </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+
+            {wishLeaves.map((leave) => {
+              // 위시 출타의 종류에 맞는 색상 추출
+              const wishColor = getLeaveColor(leave.name || currentUserName, leave.leaveType);
+
+              return (
+                <div
+                  key={leave.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: `1.5px dashed ${wishColor}`, // 출타 종류 색상의 점선 테두리
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  <div>
+                    <strong style={{ fontSize: '13px', color: wishColor }}>
+                      [⭐️ 위시 · {leave.leaveType}]
+                    </strong>{' '}
+                    <span style={{ fontSize: '13px' }}>{leave.startDate} ~ {leave.endDate}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handlePromoteWish(leave)}
+                      style={{
+                        border: 'none',
+                        backgroundColor: wishColor,
+                        color: '#ffffff',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      신청 🚀
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteLeave(leave.id)}
+                      style={{
+                        border: 'none',
+                        backgroundColor: '#e2e8f0',
+                        color: '#64748b',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
 
             {upcomingLeaves.length === 0 && wishLeaves.length === 0 && (
               <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', padding: '16px 0' }}>
@@ -218,12 +240,16 @@ return (
             )}
           </div>
         ) : (
-          /* 2. 교체된 미니 컴팩트 달력 노출 */
-          <MyCompactCalendar leaves={leaves} userId={userProfile?.id} holidays={holidays} />
+          <MyCompactCalendar 
+            leaves={leaves} 
+            userId={userProfile?.id} 
+            userProfile={userProfile} 
+            holidays={holidays} 
+          />
         )}
       </div>
 
-      {/* [Card 3] 지난 출타 기록 (아코디언) */}
+      {/* [Card 3] 지난 출타 기록 */}
       <div style={{
         backgroundColor: '#ffffff',
         border: '1px solid #e2e8f0',

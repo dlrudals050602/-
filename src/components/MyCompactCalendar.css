@@ -45,35 +45,59 @@
   transition: all 0.15s ease;
 }
 
-/* 1. 휴가 (파란색) */
-.compact-tile.my-vacation {
+/* 1. 휴가 (파란색)
+/* .compact-tile.my-vacation {
   background-color: #2563eb !important;
   color: #ffffff !important;
   font-weight: bold;
-}
+} */
 
 /* 2. 외출 (청록색) */
-.compact-tile.my-outing {
+/* .compact-tile.my-outing {
   background-color: #0d9488 !important;
   color: #ffffff !important;
   font-weight: bold;
-}
+} */
 
 /* 3. 외박 (보라색) */
-.compact-tile.my-overnight {
+/* .compact-tile.my-overnight {
   background-color: #7c3aed !important;
   color: #ffffff !important;
   font-weight: bold;
+} */
+
+/* src/components/MyCompactCalendar.css 수정 부분 */
+
+.compact-tile.my-active-tile {
+  font-weight: bold;
+}
+
+.compact-tile-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0;
+}
+
+/* 범주 아이콘(범례) */
+.dot.vacation { background-color: hsl(340, 80%, 65%); }
+.dot.outing { background-color: hsl(185, 75%, 58%); }
+.dot.overnight { background-color: hsl(260, 70%, 62%); }
+.dot.wish {
+  background-color: #eff6ff;
+  border: 1px dashed #3b82f6;
 }
 
 /* 4. 위시 (점선 테두리 + 반투명) */
 .compact-tile.my-wish {
-  background-color: #eff6ff !important;
-  color: #1d4ed8 !important;
-  border: 1.5px dashed #3b82f6 !important;
+  background-color: transparent !important; 
+  color: inherit !important;  
+  border: none !important;    
   font-weight: bold;
 }
-
 /* 주말 및 공휴일 */
 .compact-tile.holiday { color: #ef4444; }
 .compact-tile.saturday { color: #3b82f6; }
@@ -84,7 +108,7 @@
 }
 
 .compact-slot-badge {
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: bold;
   padding: 1px 4px;
   border-radius: 4px;
@@ -137,10 +161,10 @@
   display: inline-block;
 }
 
-.dot.vacation { background-color: #2563eb; }
+/* .dot.vacation { background-color: #2563eb; }
 .dot.outing { background-color: #0d9488; }
 .dot.overnight { background-color: #7c3aed; }
 .dot.wish {
   background-color: #eff6ff;
   border: 1px dashed #3b82f6;
-}
+} */
