@@ -5,7 +5,13 @@ function LoginForm({ onLoginSuccess, onRequireVerify, onGoToSignup, onGoToForgot
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // isLoading 및 setIsLoading 선언
+  const [isLoading, setIsLoading] = useState(false);
+
+  // [아이디 찾기] 관련 상태값
+  const [isFindIdModalOpen, setIsFindIdModalOpen] = useState(false);
+  const [findEmail, setFindEmail] = useState('');
+  const [findIdResult, setFindIdResult] = useState('');
+  const [isFindingId, setIsFindingId] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -25,14 +31,13 @@ function LoginForm({ onLoginSuccess, onRequireVerify, onGoToSignup, onGoToForgot
       return;
     }
 
-    // profile -> userEmail 참조로 수정
     if (!userEmail) {
       setMessage('로그인 실패: 존재하지 않는 계정입니다.');
       setIsLoading(false);
       return;
     }
 
-    // 비밀번호로 로그인 시도 (userEmail 사용)
+    // 비밀번호로 로그인 시도
     const { data: authData, error: loginError } = await supabase.auth.signInWithPassword({
       email: userEmail,
       password: password,
@@ -62,8 +67,41 @@ function LoginForm({ onLoginSuccess, onRequireVerify, onGoToSignup, onGoToForgot
     }
   };
 
+  // [아이디 찾기] 실행 함수
+  const handleFindId = async (e) => {
+    e.preventDefault();
+    setFindIdResult('');
+    setIsFindingId(true);
+
+    const targetEmail = findEmail.trim();
+
+    // Supabase RPC 함수 호출 (이메일로 아이디 조회)
+    const { data: username, error } = await supabase.rpc('get_username_by_email', {
+      p_email: targetEmail,
+    });
+
+    setIsFindingId(false);
+
+    if (error) {
+      setFindIdResult(`오류가 발생했습니다: ${error.message}`);
+      return;
+    }
+
+    if (!username) {
+      setFindIdResult('해당 이메일로 가입된 아이디를 찾을 수 없습니다.');
+    } else {
+      setFindIdResult(`회원님의 아이디는 [ ${username} ] 입니다.`);
+    }
+  };
+
+  const closeFindIdModal = () => {
+    setIsFindIdModalOpen(false);
+    setFindEmail('');
+    setFindIdResult('');
+  };
+
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
       <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>로그인</h2>
       <form onSubmit={handleLogin}>
         <div style={{ marginBottom: '15px' }}>
@@ -88,7 +126,16 @@ function LoginForm({ onLoginSuccess, onRequireVerify, onGoToSignup, onGoToForgot
             required
             style={{ width: '100%', padding: '10px', marginTop: '6px', borderRadius: '6px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
           />
-          <div style={{ textAlign: 'center', marginTop: '8px' }}>
+
+          {/* ▼▼▼ 아이디 찾기 및 비밀번호 찾기 (세로 배치) ▼▼▼ */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', marginTop: '10px' }}>
+            <button
+              type="button"
+              onClick={() => setIsFindIdModalOpen(true)}
+              style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              아이디 찾기
+            </button>
             <button
               type="button"
               onClick={onGoToForgotPassword}
@@ -97,6 +144,7 @@ function LoginForm({ onLoginSuccess, onRequireVerify, onGoToSignup, onGoToForgot
               비밀번호를 잊으셨나요?
             </button>
           </div>
+          {/* ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ */}
         </div>
 
         <button 
@@ -124,6 +172,57 @@ function LoginForm({ onLoginSuccess, onRequireVerify, onGoToSignup, onGoToForgot
           회원가입
         </button>
       </div>
+
+      {/* 아이디 찾기 모달 팝업 */}
+      {isFindIdModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', width: '90%', maxWidth: '400px', boxSizing: 'border-box' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', textAlign: 'center' }}>아이디 찾기</h3>
+            <form onSubmit={handleFindId}>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ fontSize: '13px', color: '#374151', display: 'block', marginBottom: '6px' }}>
+                  가입 시 등록한 이메일 주소를 입력해 주세요.
+                </label>
+                <input
+                  type="email"
+                  value={findEmail}
+                  onChange={(e) => setFindEmail(e.target.value)}
+                  placeholder="example@email.com"
+                  required
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isFindingId}
+                style={{ width: '100%', padding: '10px', backgroundColor: isFindingId ? '#9ca3af' : '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                {isFindingId ? '조회 중...' : '아이디 조회'}
+              </button>
+            </form>
+
+            {findIdResult && (
+              <p style={{ marginTop: '15px', fontSize: '14px', textAlign: 'center', color: findIdResult.includes('회원님의 아이디') ? '#16a34a' : '#dc2626', fontWeight: '600' }}>
+                {findIdResult}
+              </p>
+            )}
+
+            <div style={{ marginTop: '20px', textAlign: 'right' }}>
+              <button
+                type="button"
+                onClick={closeFindIdModal}
+                style={{ padding: '6px 12px', backgroundColor: '#e5e7eb', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
