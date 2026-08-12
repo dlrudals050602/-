@@ -58,22 +58,31 @@ function MyCompactCalendar({ leaves = [], userId, holidays = [] }) {
   const getTileClassName = ({ date, view }) => {
     if (view !== 'month') return null;
     const dateStr = formatDateStr(date);
-    const myDayLeaves = myLeavesMap[dateStr] || [];
+    const todayStr = formatDateStr(new Date());
+    const isPast = dateStr < todayStr;
 
+    const classNames = [];
+    if (isPast) classNames.push('past-tile');
+
+    const myDayLeaves = myLeavesMap[dateStr] || [];
     const activeLeave = myDayLeaves.find((l) => l.status === 'active' || l.status === 'pending');
     const wishLeave = myDayLeaves.find((l) => l.status === 'wish');
 
-    if (activeLeave) return 'compact-tile my-active-tile';
-    if (wishLeave) return 'compact-tile my-wish';
+    if (activeLeave) {
+      classNames.push('compact-tile my-active-tile');
+    } else if (wishLeave) {
+      classNames.push('compact-tile my-wish');
+    } else {
+      const dayOfWeek = date.getDay();
+      const isHoliday = holidays.some((h) => h.date === dateStr);
+      if (dayOfWeek === 0 || isHoliday) classNames.push('compact-tile holiday');
+      else if (dayOfWeek === 6) classNames.push('compact-tile saturday');
+      else classNames.push('compact-tile');
+    }
 
-    const dayOfWeek = date.getDay();
-    const isHoliday = holidays.some((h) => h.date === dateStr);
-    if (dayOfWeek === 0 || isHoliday) return 'compact-tile holiday';
-    if (dayOfWeek === 6) return 'compact-tile saturday';
-
-    return null;
+    return classNames.join(' ');
   };
-
+  
   // 4. 그 날짜에 '부대 전체에서 몇 명' 나가는지 하단 배지 표시 (N/5)
   const renderTileContent = ({ date, view }) => {
     if (view !== 'month') return null;

@@ -168,3 +168,17 @@
   background-color: #eff6ff;
   border: 1px dashed #3b82f6;
 } */
+
+/* 미니 달력 과거 타일 배경 및 날짜 톤다운 */
+.my-compact-calendar-wrapper .react-calendar__tile.past-tile {
+  background-color: #f1f5f9 !important;
+}
+
+.my-compact-calendar-wrapper .react-calendar__tile.past-tile abbr {
+  color: #94a3b8 !important;
+}
+
+/* 과거 타일 안의 내 출타 배지/슬롯 톤다운 */
+.my-compact-calendar-wrapper .react-calendar__tile.past-tile .compact-tile-content {
+  opacity: 0.45;
+}

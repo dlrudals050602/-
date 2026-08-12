@@ -1,9 +1,9 @@
-// src/components/CalendarView.jsx
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './CalendarView.css';
 import { groupLeavesByDate, getLeaveColor } from '../services/leaveService';
+import { getStartOfLastWeek } from '../utils/dateUtils';
 
 // 날짜 객체를 "YYYY-MM-DD" 문자열로 변환하는 헬퍼
 const formatDateStr = (targetDate) => {
@@ -14,38 +14,66 @@ const formatDateStr = (targetDate) => {
 };
 
 function CalendarView({ leaves = [], holidays = [], date, onDateChange }) {
-
-  // 상대방이 추가한 휴가 데이터 그룹화
   const leavesByDateMap = useMemo(() => {
     return groupLeavesByDate(leaves);
   }, [leaves]);
 
-  // 토요일/일요일/공휴일 스타일 지정을 위한 클래스 생성
-  const getTileClassName = ({ date, view }) => {
-    if (view === 'month') {
-      const dateStr = formatDateStr(date);
-      const dayOfWeek = date.getDay();
+  // 과거 1주일(지난주 월요일) 이전 날짜 제한 기준점
+  const lastWeekMonday = useMemo(() => getStartOfLastWeek(new Date()), []);
 
+  const [activeStartDate, setActiveStartDate] = useState(new Date());
+
+  // 현재 달력을 조회 중인지, 과거 달로 이동했는지 판별
+  const isCurrentOrFutureView = useMemo(() => {
+    const today = new Date();
+    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const activeMonthStart = new Date(activeStartDate.getFullYear(), activeStartDate.getMonth(), 1);
+
+    return activeMonthStart >= currentMonthStart;
+  }, [activeStartDate]);
+
+  const getTileClassName = ({ date: tileDate, view }) => {
+    if (view === 'month') {
+      const dateStr = formatDateStr(tileDate);
+      const todayStr = formatDateStr(new Date());
+
+      const minVisibleStr = formatDateStr(lastWeekMonday);
+
+      // 현재 화면을 보는 중일 때는 지난주 월요일 이전 일자를 레이아웃에서 완전 제거 (위로 땡겨옴)
+      if (isCurrentOrFutureView && dateStr < minVisibleStr) {
+        return 'hidden-tile';
+      }
+
+      const isPast = dateStr < todayStr;
+      const classNames = [];
+      if (isPast) classNames.push('past-tile');
+
+      const dayOfWeek = tileDate.getDay();
       const isSunday = dayOfWeek === 0;
       const isSaturday = dayOfWeek === 6;
       const isHoliday = holidays.some((h) => h.date === dateStr);
 
       if (isSunday || isHoliday) {
-        return 'holiday-tile';
+        classNames.push('holiday-tile');
+      } else if (isSaturday) {
+        classNames.push('saturday-tile');
       }
 
-      if (isSaturday) {
-        return 'saturday-tile';
-      }
+      return classNames.join(' ');
     }
     return null;
   };
 
-
-  // 3. 달력의 각 날짜(tile)마다 휴가/공휴일 렌더링 (상대방이 작성한 상세 로직 적용)
   const renderTileContent = ({ date: tileDate, view }) => {
     if (view === 'month') {
       const dateStr = formatDateStr(tileDate);
+      const todayStr = formatDateStr(new Date());
+      const minVisibleStr = formatDateStr(lastWeekMonday);
+
+      if(isCurrentOrFutureView && dateStr < minVisibleStr) return null;
+
+      const isPast = dateStr < todayStr;
+
       const activeLeaves = leavesByDateMap[dateStr] || [];
       const holidayInfo = holidays.find((h) => h.date === dateStr);
 
@@ -66,6 +94,28 @@ function CalendarView({ leaves = [], holidays = [], date, onDateChange }) {
 
       return (
         <div className="tile-content-wrapper">
+          {/* 과거 일자 삐뚤빼뚤 아날로그 X자 오버레이 */}
+          {isPast && (
+            <svg className="hand-drawn-x" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <path
+                d="M 18,15 Q 48,53 82,85"
+                stroke="#ef4444"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                fill="none"
+                opacity="0.7"
+              />
+              <path
+                d="M 85,18 Q 42,48 15,82"
+                stroke="#ef4444"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                fill="none"
+                opacity="0.7"
+              />
+            </svg>
+          )}
+
           {holidayInfo && (
             <div className="holiday-name-label">
               {holidayInfo.name}
@@ -100,13 +150,19 @@ function CalendarView({ leaves = [], holidays = [], date, onDateChange }) {
 
   return (
     <div className="calendar-container">
-      {/* 두 사람의 옵션이 모두 결합된 달력 컴포넌트 */}
-      <Calendar 
-        onChange={onDateChange} 
-        value={date} 
-        locale="ko-KR" 
+      <Calendar
+        onChange={onDateChange}
+        value={date}
+        locale="ko-KR"
+        calendarType="iso8601"
+        /* minDate={minDate} 속성을 제거하여 과거 버튼(<) 잠금을 해제합니다 */
+        showNeighboringMonth={true}
+        activeStartDate={activeStartDate}
+        onActiveStartDateChange={({ activeStartDate: newDate }) => setActiveStartDate(newDate)}
         tileClassName={getTileClassName}
-        tileContent={renderTileContent} 
+        tileContent={renderTileContent}
+        prev2Label={null}
+        next2Label={null}
       />
     </div>
   );

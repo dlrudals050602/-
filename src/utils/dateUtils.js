@@ -35,3 +35,18 @@ export const getDatesInRange = (startDateStr, endDateStr) => {
   }
   return dates;
 };
+
+// 지난주 월요일(과거 1주일 시작점) 계산
+export const getStartOfLastWeek = (refDate = new Date()) => {
+  const date = new Date(refDate);
+  date.setHours(0, 0, 0, 0);
+  const day = date.getDay(); // 0: 일, 1: 월, ..., 6: 토
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  
+  const currentMonday = new Date(date);
+  currentMonday.setDate(date.getDate() + diffToMon);
+
+  const lastWeekMonday = new Date(currentMonday);
+  lastWeekMonday.setDate(currentMonday.getDate() - 7);
+  return lastWeekMonday;
+};

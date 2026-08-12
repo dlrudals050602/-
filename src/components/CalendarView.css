@@ -102,3 +102,55 @@
   padding: 1px 0; 
 
 }
+
+/* 과거 날짜 타일 배경 슬레이트 회색 처리 */
+.react-calendar__tile.past-tile {
+  background-color: #f1f5f9 !important; /* 차분한 쿨슬레이트 연회색 */
+}
+
+/* 과거 날짜 숫자 색상 톤다운 */
+.react-calendar__tile.past-tile abbr {
+  color: #94a3b8 !important;
+}
+
+/* 과거 출타 배지 투명도 및 색상 톤다운 */
+.react-calendar__tile.past-tile .day-split-container {
+  opacity: 0.45; /* 45% 투명도로 차분하게 처리 */
+  filter: grayscale(20%); /* 살짝 그레이스케일 추가 */
+}
+
+
+/* 지난주 월요일 이전 타일 완전히 레이아웃 제거 (아래 날짜들이 위로 당겨짐) */
+.react-calendar__tile.hidden-tile {
+  display: none !important;
+}
+
+/* 과거 날짜 (지난주~어제) 3번 스타일 적용 */
+.react-calendar__tile.past-tile {
+  background-color: #f1f5f9 !important;
+}
+
+.react-calendar__tile.past-tile abbr {
+  color: #94a3b8 !important;
+}
+
+.react-calendar__tile.past-tile .day-split-container {
+  opacity: 0.45;
+  filter: grayscale(20%);
+}
+
+.react-calendar__tile .tile-content-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.hand-drawn-x {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
